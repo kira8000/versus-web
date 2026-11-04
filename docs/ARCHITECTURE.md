@@ -1,6 +1,6 @@
 # Arquitetura
 
-Tudo vive em `index.html`. Três telas (abas): BATALHA (chave), HISTÓRICO (lista) e RANKING (tabela). O fluxo é sempre o mesmo:
+Tudo vive em `index.html`. Uma Home (`#home`) no fundo e três janelas sobrepostas (`#win`): CHAVE, HISTÓRICO (lista) e RANKING (tabela). O fluxo é sempre o mesmo:
 
 ```
 ação do operador → muda db.current → save() → render() → derive(current) → SVG + slots
@@ -51,20 +51,20 @@ Desfazer é `taps.pop()`: como tudo é derivado, isso também desfaz um avanço.
 - Linhas em um `<svg>` atrás: horizontal sob o nome, vertical ligando o par, horizontal até a fase seguinte. A cor segue o `state` (verde, vermelho ou cinza).
 - Slot vira `<input>` na montagem (1ª fase) ou no modo `Editar` (slots editáveis). Senão vira `<button>` com o nome e as bolinhas.
 - `.area` = faixa invisível sobre o colchete do confronto jogável, para segurar e marcar empate.
-- Na carga, `render()` roda 2 vezes: o 2º passe mede a altura com a navbar já preenchida.
+- Na carga, `render()` roda 2 vezes: o 2º passe mede a altura com `#tools` já preenchido.
 
 ## Eventos
 
 | Evento | Efeito |
 |--------|--------|
-| `click` em `data-act` (`#tools`) | `grow` (dobra `size` e `names`), `start`, `undo`, `edit` (liga/desliga), `new` = Encerrar (arquiva a chave inteira e cria `fresh()`), `back` (sai do modo leitura) |
+| `click` em `data-act` | `grow` (dobra `size` e `names`), `start`, `new` = Encerrar (arquiva a chave inteira e cria `fresh()`), `back` (sai do modo leitura), todos em `#tools`; `undo` e `edit` (liga/desliga) na barra inferior, abrindo a chave se estiver fechada |
 | `input` | atualiza `names` ou `overrides` e salva, **sem re-renderizar** (mantém o foco) |
 | `change` | re-renderiza ao sair do campo |
 | `pointerdown` | inicia o timer de 1200 ms e a classe `.holding` (barra enchendo) no confronto |
 | `pointerup` antes do tempo | round para aquele slot |
 | timer completo | empate (`winner: null`) + `.flash` |
 | `pointercancel` / `pointerleave` | cancela |
-| clique em `data-tab` | troca `tab` (`hist` · `battle` · `rank`). Fora de `battle`, `render()` esconde o tabuleiro e chama `renderPage()` |
+| clique em `data-tab` | abre a janela `win` (`hist` · `battle` · `rank`); o mesmo botão de novo (ou o ✕, `data-close`) fecha e volta à Home. Fora de `battle`, `render()` esconde o tabuleiro e chama `renderPage()` |
 | clique em `data-view` (card do histórico) | `viewing = i`: desenha `db.history[i]` em modo leitura (sem inputs, toques nem sugestão); `back` volta à lista |
 | `resize` | re-renderiza, exceto com campo focado |
 
@@ -74,7 +74,7 @@ Mesma regra do `service-versus` (`organization-ranking.service.ts`): vitória de
 
 ## Telas
 
-`tab` (não é salvo): `battle` mostra `#tools` (ações) + `#scroll` (chave); `hist` e `rank` mostram `#page`. A navbar só navega; as ações (`Desfazer`, `Editar`, `Encerrar`, `+ vagas`, `Iniciar`) ficam em `#tools`, no topo do palco.
+`win` (não é salvo): `null` = só a Home; `battle` mostra `#tools` (ações) + `#scroll` (chave) dentro da janela; `hist` e `rank` mostram `#page`. Na carga, `win` começa em `battle` se a chave atual já foi iniciada. A barra inferior abre/fecha janelas e tem `Desfazer` e `Editar`; `Encerrar`, `+ vagas` e `Iniciar` ficam em `#tools`, no topo da janela.
 
 ## Auto-teste
 
