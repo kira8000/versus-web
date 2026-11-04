@@ -64,9 +64,18 @@ Desfazer é `taps.pop()`: como tudo é derivado, isso também desfaz um avanço.
 | `pointerup` antes do tempo | round para aquele slot |
 | timer completo | empate (`winner: null`) + `.flash` |
 | `pointercancel` / `pointerleave` | cancela |
-| clique no Histórico | `viewing = i`: `render()` desenha `db.history[i]` em modo leitura (sem inputs, toques nem sugestão); `back` volta |
+| clique em `data-tab` | troca `tab` (`hist` · `battle` · `rank`). Fora de `battle`, `render()` esconde o tabuleiro e chama `renderPage()` |
+| clique em `data-view` (card do histórico) | `viewing = i`: desenha `db.history[i]` em modo leitura (sem inputs, toques nem sugestão); `back` volta à lista |
 | `resize` | re-renderiza, exceto com campo focado |
+
+## Ranking: `rank(history)` (pura)
+
+Mesma regra do `service-versus` (`organization-ranking.service.ts`): vitória de confronto +3, vitória sem ceder round (o adversário ficou com 0 bolinhas) +1, título +5. Desempate: pontos → títulos → 2x0 → vitórias. Os nomes são agrupados sem diferenciar maiúsculas e ignorando espaços. Só batalhas **encerradas** contam; a batalha em andamento não. Entradas antigas (só o campeão) somam apenas o título.
+
+## Telas
+
+`tab` (não é salvo): `battle` mostra `#tools` (ações) + `#scroll` (chave); `hist` e `rank` mostram `#page`. A navbar só navega; as ações (`Desfazer`, `Editar`, `Encerrar`, `+ vagas`, `Iniciar`) ficam em `#tools`, no topo do palco.
 
 ## Auto-teste
 
-São 7 `console.assert` logo após `derive()`: avanço com 2 bolinhas, empate não pontua, vaga vazia bloqueia o confronto, jogo fora de ordem, override ganha, desfazer avanço e campeão.
+São 8 `console.assert` logo após `rank()`: avanço com 2 bolinhas, empate não pontua, vaga vazia bloqueia o confronto, jogo fora de ordem, override ganha, desfazer avanço, campeão e ranking.

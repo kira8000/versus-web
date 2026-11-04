@@ -10,10 +10,12 @@ Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **Um
 
 ## Como usar (operador)
 
+A barra de baixo navega entre 3 telas: **HISTÓRICO** · **BATALHA** (no meio, em destaque) · **RANKING**. As ações da batalha ficam no topo da tela BATALHA.
+
 | Ação | Como |
 |------|------|
 | Escrever os MCs | Toque no galho da 1ª fase e digite |
-| Aumentar a chave | `+` dobra: 4 → 8 → 16 |
+| Aumentar a chave | `+ vagas` dobra: 4 → 8 → 16 |
 | Começar | `Iniciar` (precisa de pelo menos 4 nomes) |
 | Dar um round | Toque no nome de quem venceu (aparece ●) |
 | Vencer o confronto | Com 2 bolinhas, o MC sobe sozinho para a próxima fase |
@@ -21,8 +23,9 @@ Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **Um
 | Errou | `Desfazer` (desfaz rounds, empates e avanços, um por vez) |
 | Repescagem / MC atrasado | `Editar` → digite o nome na vaga vazia onde ele entra |
 | Ver outras fases | Arraste para o lado (cada fase ocupa uma tela) |
-| Encerrar | `Nova chave` (a chave inteira vai para o Histórico) |
-| Rever uma batalha | `Histórico` → toque na data: abre a chave com nomes, bolinhas e campeão (só leitura) → `Voltar` |
+| Encerrar | `Encerrar` (a chave inteira vai para o Histórico e passa a contar no Ranking) |
+| Rever uma batalha | aba `HISTÓRICO` → toque no card: abre a chave em modo leitura → `← Histórico` |
+| Ranking | aba `RANKING`: vitória 3 pts, vitória 2x0 +1, título 5 (mesma regra do `service-versus`) |
 
 Regras de propósito:
 - **Não há ordem obrigatória.** O confronto sugerido pisca, mas dá para jogar qualquer um que tenha 2 nomes.

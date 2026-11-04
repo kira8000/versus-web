@@ -12,6 +12,9 @@ Cada decisão traz o motivo. Mudar uma delas exige registrar aqui.
 - **Nome digitado substitui o vencedor sem avisar.** É aceito: quem edita sabe o que está fazendo, e um aviso custaria um toque a mais.
 - **Histórico = a chave inteira** (nomes, overrides e rounds), que dá para reabrir em modo leitura. Arquiva se houver campeão ou pelo menos 1 round. Entradas antigas (só o campeão) continuam listadas, sem abrir. O formato só ganhou campos opcionais, por isso não houve `v2`.
 
+- **Navbar = navegação entre 3 telas** (HISTÓRICO · BATALHA · RANKING, com BATALHA maior no meio). As ações da batalha subiram para o topo do palco: ficam perto da chave e não competem com a navegação. `Nova chave` virou `Encerrar`, porque é isso que leva a batalha ao histórico e ao ranking.
+- **Ranking com a regra do `service-versus`** (3 / +1 / 5), calculado a partir do histórico local. Nada é salvo à parte, então editar ou apagar o histórico nunca deixa o ranking dessincronizado.
+
 ## Técnica
 - **Um `index.html`, vanilla, sem build.** Custo mínimo de manutenção e de tokens, e deploy estático trivial.
 - **Estado derivado** (`names + overrides + taps`). Evita estado inconsistente, e desfazer vira `pop()`.

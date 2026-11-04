@@ -11,10 +11,27 @@
          background:var(--bg); color:#ddd; font:18px/1.2 ui-monospace,"Cascadia Mono",Consolas,monospace; }
   header { text-align:center; padding:16px 14px 0; }
   h1 { margin:0; font-size:36px; letter-spacing:10px; color:var(--win); text-shadow:0 0 14px #5fbf5f66; }
-  details { display:inline-block; font-size:13px; color:#aaa; text-align:left; }
-  details ol { margin:6px 0; padding-left:20px; }
-  button.hist { font:inherit; color:#ccc; background:none; border:0; padding:10px 0; min-height:44px; text-align:left; cursor:pointer; text-decoration:underline; }
-  button.hist.on { color:var(--glow); }
+  #tools { display:flex; gap:8px; justify-content:center; align-items:center; padding:10px 14px 0; min-height:54px; }
+  #tools button { min-height:44px; padding:0 16px; font:inherit; font-size:15px; font-weight:bold; background:#2c2c2c;
+                  color:#eee; border:1px solid #444; border-radius:22px; }
+  #tools button.primary { background:var(--win); color:#111; border-color:var(--win); }
+  #tools button.on { border-color:var(--glow); color:var(--glow); }
+  #tools button:disabled { opacity:.35; }
+  #tools small { color:#999; font-size:13px; }
+  #page { flex:1; overflow-y:auto; padding:14px; }
+  .card { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; min-height:60px; padding:10px 14px;
+          margin-bottom:10px; background:#262626; border:1px solid #333; border-radius:8px; font:inherit; color:#ddd; text-align:left; }
+  button.card { cursor:pointer; }
+  .card small { color:#999; font-size:13px; }
+  .card b { color:var(--glow); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  table { width:100%; border-collapse:collapse; font-size:16px; }
+  th, td { padding:12px 6px; text-align:right; }
+  th { color:#999; font-size:13px; font-weight:normal; }
+  th:nth-child(2), td:nth-child(2) { text-align:left; width:100%; max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  tbody tr { border-top:1px solid #333; }
+  tr.top td { color:var(--glow); font-weight:bold; }
+  .empty, .legend { color:#999; text-align:center; font-size:14px; }
+  .empty { margin-top:48px; }
   [hidden] { display:none !important; }
   /* uma fase por tela; a barra de rolagem fica colada acima dos botões e precisa ser bem visível */
   #scroll { flex:1; overflow:auto; scroll-snap-type:x mandatory; scrollbar-color:#888 #2a2a2a; }
@@ -42,16 +59,20 @@
   @keyframes fill { from { transform:scaleX(0); } to { transform:scaleX(1); } }
   .flash { animation:flash .5s; } @keyframes flash { 0% { background:#fff4; } }
   .champ { color:var(--glow); font-size:18px; text-shadow:0 0 10px var(--glow); }
-  nav { display:flex; gap:10px; padding:12px 14px calc(12px + env(safe-area-inset-bottom)); background:#161616; }
-  nav button { flex:1; min-height:48px; font:inherit; font-weight:bold; background:#2c2c2c; color:#eee; border:1px solid #444; border-radius:4px; }
-  nav button.primary { background:var(--win); color:#111; border-color:var(--win); }
-  nav button.on { border-color:var(--glow); color:var(--glow); }
-  nav button:disabled { opacity:.35; }
+  /* navegação entre as 3 telas: BATALHA no meio, maior e destacada */
+  nav { display:flex; gap:10px; align-items:center; padding:10px 14px calc(10px + env(safe-area-inset-bottom)); background:#161616; border-top:1px solid #2a2a2a; }
+  nav button { flex:1; min-height:48px; font:inherit; font-size:13px; font-weight:bold; letter-spacing:1px; background:none; color:#999;
+               border:1px solid #333; border-radius:8px; }
+  nav button.main { flex:1.5; min-height:58px; font-size:18px; letter-spacing:3px; background:#2c2c2c; color:#eee; border-color:#555; }
+  nav button.active { color:var(--glow); border-color:var(--glow); }
+  nav button.main.active { background:var(--win); color:#111; border-color:var(--win); box-shadow:0 0 14px #5fbf5f66; }
 </style>
 </head>
 <body>
-<header><h1>VERSUS</h1><details id="hist" hidden></details></header>
+<header><h1>VERSUS</h1></header>
+<div id="tools"></div>
 <div id="scroll"><div id="board"></div></div>
+<main id="page" hidden></main>
 <nav id="bar"></nav>
 <script>
 const KEY = 'versus-web:v1', HOLD_MS = 1200, PAD = 28, MIN_ROW = 56;
@@ -88,6 +109,26 @@ function derive({ size, names, overrides, taps }) {
   return { cols, suggested, champion, playable };
 }
 
+// Mesma regra do service-versus (organization-ranking.service.ts): vitória +3, vitória 2x0 +1, título +5.
+// Desempate: pontos → títulos → 2x0 → vitórias. Nome comparado sem caixa/espaços.
+function rank(history) {
+  const m = new Map(), row = n => {
+    const k = n.trim().toLowerCase();
+    if (!m.has(k)) m.set(k, { name: n.trim(), points: 0, wins: 0, w20: 0, titles: 0 });
+    return m.get(k);
+  };
+  for (const h of history) {
+    const d = h.names ? derive(h) : null, champ = d ? d.champion : h.champion; // entrada antiga: só o título
+    if (d) d.cols.slice(0, -1).forEach(col => col.forEach((s, i) => {
+      if (s.state !== 'win') return;
+      const r = row(s.name); r.wins++; r.points += 3;
+      if (col[i ^ 1].dots === 0) { r.w20++; r.points++; }
+    }));
+    if (champ) { const r = row(champ); r.titles++; r.points += 5; }
+  }
+  return [...m.values()].sort((a, b) => b.points - a.points || b.titles - a.titles || b.w20 - a.w20 || b.wins - a.wins);
+}
+
 // ---------- auto-teste ----------
 (() => {
   const N = ['A', 'B', 'C', 'D'], t = (m, w) => ({ match: m, winner: w });
@@ -102,20 +143,35 @@ function derive({ size, names, overrides, taps }) {
   console.assert(d(AA.slice(0, -1)).cols[1][0].name === '', 'undo de avanço');
   const full = [...AA, t('0-1', '0-2'), t('0-1', '0-2'), t('1-0', '1-1'), t('1-0', '1-1')];
   console.assert(d(full).champion === 'C', 'campeão');
+  // A vence B 2x0, C vence D 2x1, A vence C 2x0 → A: 3+1+3+1+5 = 13 (+5 do título antigo 'a ') ; C: 3
+  const h = { size: 4, names: N, overrides: {}, taps: [...AA, t('0-1', '0-2'), t('0-1', '0-3'), t('0-1', '0-2'), t('1-0', '1-0'), t('1-0', '1-0')] };
+  const rk = rank([h, { champion: 'a ', size: 4 }]);
+  console.assert(rk[0].name === 'A' && rk[0].points === 18 && rk[0].titles === 2 && rk[1].name === 'C' && rk[1].points === 3, 'ranking');
 })();
 
 // ---------- estado + storage ----------
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* modo privado: segue sem salvar */ } }
 const db = load() || { current: fresh(), history: [] };
-let editing = false, flashMatch = null, viewing = null; // viewing = índice no histórico aberto em modo leitura
+let tab = 'battle', editing = false, flashMatch = null, viewing = null; // viewing = índice do histórico aberto em modo leitura
 const cur = () => db.current;
 
 // ---------- render ----------
 const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const yOf = (c, i) => PAD + (i + 0.5) * 2 ** c * ROW;
 
+const fmtDate = ms => new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+
 function render() {
+  const showBoard = tab === 'battle' || viewing !== null;
+  document.getElementById('scroll').hidden = !showBoard;
+  document.getElementById('page').hidden = showBoard;
+  const tabBtn = (id, label, cls = '') => `<button data-tab="${id}" class="${cls}${tab === id ? ' active' : ''}">${label}</button>`;
+  document.getElementById('bar').innerHTML = tabBtn('hist', 'HISTÓRICO') + tabBtn('battle', 'BATALHA', 'main') + tabBtn('rank', 'RANKING');
+  const tools = document.getElementById('tools');
+  if (!showBoard) { tools.innerHTML = ''; tools.hidden = true; renderPage(); return; }
+  tools.hidden = false;
+
   const live = viewing === null, s = live ? cur() : db.history[viewing];
   const d = derive(s), { cols, champion, playable } = d, L = cols.length - 1, suggested = live ? d.suggested : null, on = s.started && live;
   const board = document.getElementById('board'), sc = document.getElementById('scroll');
@@ -155,49 +211,58 @@ function render() {
   board.innerHTML = `<svg width="${W}" height="${H}" stroke-width="3">${svg}</svg>` + html;
   flashMatch = null;
 
+  // ações da batalha ficam no topo do palco, perto da chave; a navbar só navega entre telas
   const filled = s.names.filter(n => n.trim()).length;
-  document.getElementById('bar').innerHTML = !live
-    ? `<button data-act="back" class="primary">← Voltar à chave atual</button>`
+  tools.innerHTML = !live
+    ? `<button data-act="back">← Histórico</button><small>${fmtDate(s.createdAt)} · ${s.size} MCs</small>`
     : s.started
     ? `<button data-act="undo" ${s.taps.length ? '' : 'disabled'}>↶ Desfazer</button>
        <button data-act="edit" class="${editing ? 'on' : ''}">✎ Editar</button>
-       <button data-act="new">Nova chave</button>`
-    : `<button data-act="grow" ${s.size >= 16 ? 'disabled' : ''}>+ (${s.size}→${Math.min(s.size * 2, 16)})</button>
+       <button data-act="new">Encerrar</button>`
+    : `<button data-act="grow" ${s.size >= 16 ? 'disabled' : ''}>+ vagas (${s.size}→${Math.min(s.size * 2, 16)})</button>
        <button data-act="start" class="primary" ${filled >= 4 ? '' : 'disabled'}>Iniciar (${filled})</button>`;
+}
 
-  const h = document.getElementById('hist');
-  // entradas antigas (antes da v3) só têm o campeão: listadas, mas sem chave para abrir
-  h.innerHTML = `<summary>Histórico (${db.history.length})</summary><ol>${db.history.map((x, i) =>
-    `<li>${x.names ? `<button class="hist${i === viewing ? ' on' : ''}" data-view="${i}">` : '<span>'}${new Date(x.createdAt).toLocaleDateString('pt-BR')} · ${x.size} MCs · ${x.champion ? '👑 ' + esc(x.champion) : 'sem campeão'}${x.names ? '</button>' : '</span>'}</li>`).join('')}</ol>`;
-  h.hidden = !db.history.length;
+function renderPage() {
+  const page = document.getElementById('page');
+  if (tab === 'hist') {
+    // entradas antigas só têm o campeão: listadas, mas sem chave para abrir
+    page.innerHTML = db.history.length ? db.history.map((x, i) => `<${x.names ? `button data-view="${i}"` : 'div'} class="card">
+        <small>${fmtDate(x.createdAt)} · ${x.size} MCs</small>
+        <b>${x.champion ? '👑 ' + esc(x.champion) : 'sem campeão'}</b></${x.names ? 'button' : 'div'}>`).join('')
+      : '<p class="empty">Nenhuma batalha encerrada ainda.</p>';
+    return;
+  }
+  const rows = rank(db.history);
+  page.innerHTML = rows.length ? `<table><thead><tr><th>#</th><th>MC</th><th>PTS</th><th>V</th><th>2x0</th><th>🏆</th></tr></thead><tbody>${
+    rows.map((r, i) => `<tr class="${i < 3 ? 'top' : ''}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.points}</td><td>${r.wins}</td><td>${r.w20}</td><td>${r.titles}</td></tr>`).join('')
+  }</tbody></table><p class="legend">Vitória 3 · 2x0 +1 · Título 5</p>`
+    : '<p class="empty">Sem ranking ainda — encerre batalhas para acumular pontos.</p>';
 }
 
 // ---------- ações ----------
 function commit() { save(); render(); }
 function tap(match, winner) { cur().taps.push({ match, winner }); if (winner === null) flashMatch = match; commit(); }
 
-document.getElementById('bar').addEventListener('click', e => {
-  const act = e.target.closest('button')?.dataset.act, s = cur();
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act], [data-tab], [data-view]');
+  if (!b) return;
+  const { act, tab: t, view } = b.dataset, s = cur();
+  if (t) { tab = t; viewing = null; editing = false; }
+  if (view !== undefined) { viewing = Number(view); render(); document.getElementById('scroll').scrollTo(0, 0); return; }
   if (act === 'back') viewing = null;
   if (act === 'grow') { s.names = s.names.concat(Array(s.size).fill('')); s.size *= 2; }
   if (act === 'start') { s.started = true; editing = false; }
   if (act === 'undo') s.taps.pop();
   if (act === 'edit') editing = !editing;
   if (act === 'new') {
-    if (!confirm('Encerrar esta chave e começar outra?')) return;
+    if (!confirm('Encerrar esta batalha? Ela vai para o Histórico e conta no Ranking.')) return;
     const champ = derive(s).champion;
     // guarda a chave inteira (nomes + rounds) para poder rever o resultado depois
     if (champ || s.taps.length) db.history.unshift({ ...s, champion: champ });
     db.current = fresh(); editing = false;
   }
   commit();
-});
-
-document.getElementById('hist').addEventListener('click', e => {
-  const i = e.target.closest('[data-view]')?.dataset.view;
-  if (i === undefined) return;
-  viewing = Number(i); editing = false; document.getElementById('hist').open = false;
-  render(); document.getElementById('scroll').scrollTo(0, 0);
 });
 
 const board = document.getElementById('board');
