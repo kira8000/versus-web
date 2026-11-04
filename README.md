@@ -21,7 +21,7 @@ Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **A 
 
 ## Como usar (operador)
 
-A barra de baixo navega entre 3 telas: **HISTÓRICO** · **BATALHA** (no meio, em destaque) · **RANKING**. As ações da batalha ficam no topo da tela BATALHA.
+O app abre na Home: **VERSUS** + **Batalhar**. A chave, o histórico e o ranking abrem em janelas sobre a Home. A barra de baixo tem **HISTÓRICO** · **DESFAZER** · **CHAVE** (no meio, em destaque) · **EDITAR** · **RANKING**; tocar de novo no mesmo botão fecha a janela. `Encerrar`, `+ vagas` e `Iniciar` ficam no topo da janela da chave.
 
 | Ação | Como |
 |------|------|

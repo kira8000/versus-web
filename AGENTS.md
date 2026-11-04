@@ -15,12 +15,12 @@ python -m http.server 5178   # http://localhost:5178
 
 | Bloco | O que faz |
 |-------|-----------|
-| `<style>` | Tema (variáveis em `:root`), layout em coluna de altura total, barra de rolagem visível, abas |
+| `<style>` | Tema (variáveis em `:root`), layout em coluna de altura total, barra de rolagem visível, Home, janela sobreposta (`#win`), barra inferior |
 | `fresh()` / `derive()` | **Lógica pura.** Todo o placar sai de `names + overrides + taps` |
 | `rank(history)` | **Lógica pura.** Ranking derivado do histórico (regra do `service-versus`: 3 / +1 / 5) |
 | auto-teste | 8 `console.assert` sobre `derive()` e `rank()` |
 | `load()` / `save()` | `localStorage["versus-web:v1"]`, sempre dentro de `try/catch` |
-| `render()` | Navbar (abas) + `#tools`; na aba BATALHA recalcula a geometria (`COL` = largura da tela, `ROW` = altura útil / vagas) e redesenha SVG + slots |
+| `render()` | Barra inferior + Home + janela `win`; na janela CHAVE recalcula a geometria (`COL` = largura da tela, `ROW` = altura útil / vagas) e redesenha SVG + slots |
 | `renderPage()` | Abas HISTÓRICO (cards) e RANKING (tabela) em `#page` |
 | ações | Um `click` no `document` para `data-tab`, `data-act` (`grow`, `start`, `undo`, `edit`, `new`, `back`) e `data-view`; digitação (`input`/`change`); tocar e segurar (`pointer*`) |
 

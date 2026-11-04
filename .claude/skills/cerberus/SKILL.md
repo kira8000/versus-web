@@ -27,7 +27,7 @@ O app é usado ao vivo, no celular, num ambiente barulhento. Um erro aqui trava 
 
 ## Cabeça 1 — UX de palco
 
-1. **Um toque por round.** Nada de confirmação, modal ou tela extra no fluxo ao vivo. A navbar só navega (HISTÓRICO · BATALHA · RANKING); ação de palco fica em `#tools`.
+1. **Um toque por round.** Nada de confirmação, modal ou tela extra no fluxo ao vivo. A janela da chave fica aberta durante o ao vivo; a barra inferior abre/fecha janelas e tem só `Desfazer` e `Editar` como ação (o resto fica em `#tools`).
 2. **Feedback imediato:** bolinha, cor (verde = vence, vermelho = perde), pulso no sugerido, barra ao segurar.
 3. **Alvos de toque ≥ 44px.** Legível a 1 braço de distância. Contraste ≥ 4.5:1. Estado nunca só por cor: bolinhas e 👑 reforçam.
 4. **Flexibilidade:** sem ordem obrigatória e sem bloquear edição de vagas não disputadas.
