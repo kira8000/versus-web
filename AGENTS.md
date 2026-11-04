@@ -20,9 +20,10 @@ python -m http.server 5178   # http://localhost:5178
 | `rank(history)` | **Lógica pura.** Ranking derivado do histórico (regra do `service-versus`: 3 / +1 / 5) |
 | auto-teste | 8 `console.assert` sobre `derive()` e `rank()` |
 | `load()` / `save()` | `localStorage["versus-web:v1"]`, sempre dentro de `try/catch` |
-| `render()` | Barra inferior + Home + janela `win`; na janela CHAVE recalcula a geometria (`COL` = largura da tela, `ROW` = altura útil / vagas) e redesenha SVG + slots |
-| `renderPage()` | Abas HISTÓRICO (cards) e RANKING (tabela) em `#page` |
-| ações | Um `click` no `document` para `data-tab`, `data-act` (`grow`, `start`, `undo`, `edit`, `new`, `back`) e `data-view`; digitação (`input`/`change`); tocar e segurar (`pointer*`) |
+| `bracket()` | Desenha uma chave (SVG + slots); `live` liga toques, inputs e sugestão. Usada no palco e no card do histórico |
+| `render()` | Barra inferior + Home + janela `win`; na janela CHAVE calcula `COL` (largura da tela) e `ROW` (altura útil / vagas) e chama `bracket(..., { live: true })` |
+| `renderPage()` | HISTÓRICO (cards que expandem com a chave, `openHist`) e RANKING (tabela) em `#page` |
+| ações | Um `click` no `document` para `data-tab`, `data-act` (`grow`, `start`, `undo`, `edit`, `new`) e `data-view`; digitação (`input`/`change`); tocar e segurar (`pointer*`) |
 
 Detalhes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

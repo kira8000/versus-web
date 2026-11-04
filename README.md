@@ -13,7 +13,7 @@ Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **A 
 | Tela | O que tem |
 |------|-----------|
 | **BATALHA** | Chave de 4, 8 ou 16 vagas; 1 fase por tela (arrasta para o lado); round com 1 toque; empate segurando; desfazer ilimitado; repescagem editando a vaga; confronto sugerido piscando; campeão com 👑 |
-| **HISTÓRICO** | Todas as batalhas encerradas (data, tamanho, campeão); toque abre a chave completa em modo leitura |
+| **HISTÓRICO** | Todas as batalhas encerradas (data, tamanho, campeão); toque no card expande a chave completa ali mesmo, como no Mobile Versus |
 | **RANKING** | Tabela por MC: pontos, vitórias, vitórias 2x0, títulos; top 3 em destaque |
 | Sempre | Salva sozinho no navegador a cada toque; recarregar continua de onde parou; funciona offline depois de aberto uma vez* |
 
@@ -35,7 +35,7 @@ O app abre na Home: **VERSUS** + **Batalhar**. A chave, o histórico e o ranking
 | Repescagem / MC atrasado | `Editar` → digite o nome na vaga vazia onde ele entra |
 | Ver outras fases | Arraste para o lado (cada fase ocupa uma tela) |
 | Encerrar | `Encerrar` (a chave inteira vai para o Histórico e passa a contar no Ranking) |
-| Rever uma batalha | aba `HISTÓRICO` → toque no card: abre a chave em modo leitura → `← Histórico` |
+| Rever uma batalha | `HISTÓRICO` → toque no card: a chave abre dentro dele (só leitura; arraste para o lado). Toque de novo para fechar |
 | Ranking | aba `RANKING`: vitória 3 pts, vitória 2x0 +1, título 5 (mesma regra do `service-versus`) |
 
 Regras de propósito:

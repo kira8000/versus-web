@@ -45,6 +45,9 @@ Desfazer é `taps.pop()`: como tudo é derivado, isso também desfaz um avanço.
 
 ## Render
 
+`bracket(s, { col, row, slotH, live })` devolve o HTML de uma chave (SVG + slots). O palco usa `live: true` com `col` = largura da tela; o histórico usa uma versão mini, só leitura.
+
+
 - `COL` = largura do contêiner de rolagem (1 fase = 1 tela, com `scroll-snap`).
 - `ROW` = `(altura útil − PAD) / size`, no mínimo `MIN_ROW` = 56. Com 16 vagas no celular, a tela rola na vertical.
 - Posição do slot: `x = c·COL + 16`, `y = PAD + (i + ½)·2ᶜ·ROW`. O nome fica **sobre** a linha.
@@ -57,7 +60,7 @@ Desfazer é `taps.pop()`: como tudo é derivado, isso também desfaz um avanço.
 
 | Evento | Efeito |
 |--------|--------|
-| `click` em `data-act` | `grow` (dobra `size` e `names`), `start`, `new` = Encerrar (arquiva a chave inteira e cria `fresh()`), `back` (sai do modo leitura), todos em `#tools`; `undo` e `edit` (liga/desliga) na barra inferior, abrindo a chave se estiver fechada |
+| `click` em `data-act` | `grow` (dobra `size` e `names`), `start`, `new` = Encerrar (arquiva a chave inteira e cria `fresh()`), todos em `#tools`; `undo` e `edit` (liga/desliga) na barra inferior, abrindo a chave se estiver fechada |
 | `input` | atualiza `names` ou `overrides` e salva, **sem re-renderizar** (mantém o foco) |
 | `change` | re-renderiza ao sair do campo |
 | `pointerdown` | inicia o timer de 1200 ms e a classe `.holding` (barra enchendo) no confronto |
@@ -65,7 +68,7 @@ Desfazer é `taps.pop()`: como tudo é derivado, isso também desfaz um avanço.
 | timer completo | empate (`winner: null`) + `.flash` |
 | `pointercancel` / `pointerleave` | cancela |
 | clique em `data-tab` | abre a janela `win` (`hist` · `battle` · `rank`); o mesmo botão de novo (ou o ✕, `data-close`) fecha e volta à Home. Fora de `battle`, `render()` esconde o tabuleiro e chama `renderPage()` |
-| clique em `data-view` (card do histórico) | `viewing = i`: desenha `db.history[i]` em modo leitura (sem inputs, toques nem sugestão); `back` volta à lista |
+| clique em `data-view` (card do histórico) | alterna `i` em `openHist`; o card expandido desenha `bracket(db.history[i], { col: 170, row: 40, slotH: 30 })` só leitura |
 | `resize` | re-renderiza, exceto com campo focado |
 
 ## Ranking: `rank(history)` (pura)

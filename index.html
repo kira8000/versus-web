@@ -34,6 +34,15 @@
   .card { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; min-height:60px; padding:10px 14px;
           margin-bottom:10px; background:#262626; border:1px solid #333; border-radius:8px; font:inherit; color:#ddd; text-align:left; }
   button.card { cursor:pointer; }
+  .card i { font-style:normal; color:#999; margin-left:auto; padding-left:8px; }
+  .card b { margin-left:auto; }
+  .hcard { margin-bottom:10px; border:1px solid #333; border-radius:8px; background:#262626; overflow:hidden; }
+  .hcard .card { margin:0; border:0; border-radius:0; }
+  .hcard.open .card { border-bottom:1px solid #333; }
+  .mini { overflow-x:auto; padding:4px 0 8px; scrollbar-color:#888 #2a2a2a; }
+  .mini .slot { font-size:14px; padding-bottom:3px; gap:6px; }
+  .mini .dots { font-size:11px; }
+  .mini .champ { font-size:15px; }
   .card small { color:#999; font-size:13px; }
   .card b { color:var(--glow); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   table { width:100%; border-collapse:collapse; font-size:16px; }
@@ -50,8 +59,8 @@
   #scroll::-webkit-scrollbar { height:12px; width:6px; }
   #scroll::-webkit-scrollbar-track { background:#2a2a2a; }
   #scroll::-webkit-scrollbar-thumb { background:#888; border-radius:6px; }
-  #board { position:relative; }
-  #board svg { position:absolute; inset:0; overflow:visible; }
+  .bk { position:relative; }
+  .bk svg { position:absolute; inset:0; overflow:visible; }
   .snap { position:absolute; top:0; height:1px; scroll-snap-align:start; }
   .slot, .area { position:absolute; height:44px; }
   .slot { display:flex; align-items:flex-end; gap:8px; padding:0 2px 6px; background:none; border:0; color:var(--open);
@@ -174,14 +183,51 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {
 const db = load() || { current: fresh(), history: [] };
 const cur = () => db.current;
 // win = janela aberta sobre a Home (null | 'battle' | 'hist' | 'rank'); recarregar no meio da batalha volta direto para a chave.
-// viewing = índice do histórico aberto em modo leitura. Estado de tela, nunca salvo.
-let win = cur().started ? 'battle' : null, editing = false, flashMatch = null, viewing = null;
+// Estado de tela, nunca salvo. openHist = cards do histórico expandidos (como o ExpansionTile do mobile-versus).
+let win = cur().started ? 'battle' : null, editing = false, flashMatch = null;
+const openHist = new Set();
 
 // ---------- render ----------
 const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-const yOf = (c, i) => PAD + (i + 0.5) * 2 ** c * ROW;
 
 const fmtDate = ms => new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+
+// Desenha a chave de `s`. live = palco (toques, inputs, sugestão); senão só leitura (histórico).
+function bracket(s, { col, row, slotH = 44, live = false }) {
+  const d = derive(s), { cols, champion, playable } = d, L = cols.length - 1, suggested = live ? d.suggested : null, on = s.started && live;
+  const yOf = (c, i) => PAD + (i + 0.5) * 2 ** c * row;
+  const W = (L + 1) * col, H = s.size * row + PAD;
+  const color = st => st === 'win' ? 'var(--win)' : st === 'lose' ? 'var(--lose)' : 'var(--open)';
+  let svg = '', html = '';
+
+  cols.forEach((cl, c) => cl.forEach((sl, i) => {
+    const x = c * col + 16, y = yOf(c, i), last = c === L;
+    const lineEnd = last ? x + col - 32 : x + col - 48;
+    if (live && i === 0) html += `<div class="snap" style="left:${c * col}px;width:${col}px"></div>`;
+    svg += `<line x1="${x}" y1="${y}" x2="${lineEnd}" y2="${y}" stroke="${color(sl.state)}"/>`;
+    if (!last) {
+      const ym = yOf(c + 1, i >> 1);
+      svg += `<line x1="${lineEnd}" y1="${y}" x2="${lineEnd}" y2="${ym}" stroke="${color(sl.state)}"/>`;
+      if (i % 2 === 0) {
+        const decided = cl[i].state !== 'open';
+        svg += `<line x1="${lineEnd}" y1="${ym}" x2="${x + col}" y2="${ym}" stroke="${decided ? 'var(--win)' : 'var(--open)'}"/>`;
+        if (on && playable.has(sl.match)) // área do confronto: segurar = empate
+          html += `<div class="area${sl.match === suggested ? ' suggested' : ''}" data-match="${sl.match}" style="left:${lineEnd - 10}px;top:${y}px;width:30px;height:${yOf(c, i + 1) - y}px"></div>`;
+      }
+    }
+    const style = `left:${x}px;top:${y - slotH}px;width:${lineEnd - x - 8}px;height:${slotH}px`;
+    if (last) { html += `<div class="slot ${champion ? 'champ' : ''}" style="${style}"><span class="nm">${esc(sl.name)}</span>${champion ? ' 👑' : ''}</div>`; return; }
+    const asInput = live && (s.started ? (editing && sl.editable) : c === 0);
+    if (asInput) {
+      html += `<input class="slot" data-slot="${sl.id}" value="${esc(c === 0 ? s.names[i] : (s.overrides[sl.id] ?? sl.name))}" aria-label="MC ${sl.id}" autocomplete="off" style="${style}">`;
+    } else {
+      const cls = [sl.state, sl.match === suggested && 'suggested', on && sl.state === 'open' && sl.match !== suggested && 'dim', live && sl.match === flashMatch && 'flash'].filter(Boolean).join(' ');
+      const can = on && playable.has(sl.match);
+      html += `<button class="slot ${cls}" data-slot="${sl.id}" data-match="${sl.match}" ${can ? '' : 'disabled'} style="${style}"><span class="nm">${esc(sl.name)}</span><span class="dots">${'●'.repeat(sl.dots)}</span></button>`;
+    }
+  }));
+  return `<div class="bk" style="width:${W}px;height:${H}px"><svg width="${W}" height="${H}" stroke-width="3">${svg}</svg>${html}</div>`;
+}
 
 function render() {
   const c0 = cur(), liveBoard = win === 'battle';
@@ -200,7 +246,7 @@ function render() {
   document.getElementById('win').hidden = !win;
   if (!win) return;
 
-  const showBoard = liveBoard || viewing !== null;
+  const showBoard = liveBoard;
   document.getElementById('wtitle').textContent = win === 'rank' ? 'RANKING'
     : win === 'hist' ? 'HISTÓRICO' : c0.started ? 'CHAVE · AO VIVO' : 'NOVA CHAVE';
   document.getElementById('scroll').hidden = !showBoard;
@@ -209,50 +255,15 @@ function render() {
   if (!showBoard) { tools.innerHTML = ''; tools.hidden = true; renderPage(); return; }
   tools.hidden = false;
 
-  const live = viewing === null, s = live ? cur() : db.history[viewing];
-  const d = derive(s), { cols, champion, playable } = d, L = cols.length - 1, suggested = live ? d.suggested : null, on = s.started && live;
-  const board = document.getElementById('board'), sc = document.getElementById('scroll');
+  const s = cur(), sc = document.getElementById('scroll');
   COL = sc.clientWidth;
   ROW = Math.max(MIN_ROW, Math.floor((sc.clientHeight - PAD - 20) / s.size));
-  const W = (L + 1) * COL, H = s.size * ROW + PAD;
-  board.style.width = W + 'px'; board.style.height = H + 'px';
-  const color = st => st === 'win' ? 'var(--win)' : st === 'lose' ? 'var(--lose)' : 'var(--open)';
-  let svg = '', html = '';
-
-  cols.forEach((col, c) => col.forEach((sl, i) => {
-    const x = c * COL + 16, y = yOf(c, i), last = c === L;
-    const lineEnd = last ? x + COL - 32 : x + COL - 48;
-    if (i === 0) html += `<div class="snap" style="left:${c * COL}px;width:${COL}px"></div>`;
-    svg += `<line x1="${x}" y1="${y}" x2="${lineEnd}" y2="${y}" stroke="${color(sl.state)}"/>`;
-    if (!last) {
-      const ym = yOf(c + 1, i >> 1);
-      svg += `<line x1="${lineEnd}" y1="${y}" x2="${lineEnd}" y2="${ym}" stroke="${color(sl.state)}"/>`;
-      if (i % 2 === 0) {
-        const decided = col[i].state !== 'open';
-        svg += `<line x1="${lineEnd}" y1="${ym}" x2="${x + COL}" y2="${ym}" stroke="${decided ? 'var(--win)' : 'var(--open)'}"/>`;
-        if (on && playable.has(sl.match)) // área do confronto: segurar = empate
-          html += `<div class="area${sl.match === suggested ? ' suggested' : ''}" data-match="${sl.match}" style="left:${lineEnd - 10}px;top:${y}px;width:30px;height:${yOf(c, i + 1) - y}px"></div>`;
-      }
-    }
-    const style = `left:${x}px;top:${y - 44}px;width:${lineEnd - x - 8}px`;
-    if (last) { html += `<div class="slot ${champion ? 'champ' : ''}" style="${style}"><span class="nm">${esc(sl.name)}</span>${champion ? ' 👑' : ''}</div>`; return; }
-    const asInput = s.started ? (on && editing && sl.editable) : c === 0;
-    if (asInput) {
-      html += `<input class="slot" data-slot="${sl.id}" value="${esc(c === 0 ? s.names[i] : (s.overrides[sl.id] ?? sl.name))}" aria-label="MC ${sl.id}" autocomplete="off" style="${style}">`;
-    } else {
-      const cls = [sl.state, sl.match === suggested && 'suggested', on && sl.state === 'open' && sl.match !== suggested && 'dim', sl.match === flashMatch && 'flash'].filter(Boolean).join(' ');
-      const can = on && playable.has(sl.match);
-      html += `<button class="slot ${cls}" data-slot="${sl.id}" data-match="${sl.match}" ${can ? '' : 'disabled'} style="${style}"><span class="nm">${esc(sl.name)}</span><span class="dots">${'●'.repeat(sl.dots)}</span></button>`;
-    }
-  }));
-  board.innerHTML = `<svg width="${W}" height="${H}" stroke-width="3">${svg}</svg>` + html;
+  document.getElementById('board').innerHTML = bracket(s, { col: COL, row: ROW, live: true });
   flashMatch = null;
 
   // Desfazer e Editar ficam na barra inferior; aqui só o que é da janela (montar, encerrar, voltar)
   const filled = s.names.filter(n => n.trim()).length;
-  tools.innerHTML = !live
-    ? `<button data-act="back">← Histórico</button><small>${fmtDate(s.createdAt)} · ${s.size} MCs</small>`
-    : s.started
+  tools.innerHTML = s.started
     ? `<small>${editing ? 'Editando vagas' : 'Toque = round · segure = empate'}</small><button data-act="new">Encerrar</button>`
     : `<button data-act="grow" ${s.size >= 16 ? 'disabled' : ''}>+ vagas (${s.size}→${Math.min(s.size * 2, 16)})</button>
        <button data-act="start" class="primary" ${filled >= 4 ? '' : 'disabled'}>Iniciar (${filled})</button>`;
@@ -261,11 +272,16 @@ function render() {
 function renderPage() {
   const page = document.getElementById('page');
   if (win === 'hist') {
-    // entradas antigas só têm o campeão: listadas, mas sem chave para abrir
-    page.innerHTML = db.history.length ? db.history.map((x, i) => `<${x.names ? `button data-view="${i}"` : 'div'} class="card">
-        <small>${fmtDate(x.createdAt)} · ${x.size} MCs</small>
-        <b>${x.champion ? '👑 ' + esc(x.champion) : 'sem campeão'}</b></${x.names ? 'button' : 'div'}>`).join('')
-      : '<p class="empty">Nenhuma batalha encerrada ainda.</p>';
+    // card expande no lugar com a chave (só leitura); entradas antigas só têm o campeão e não expandem
+    page.innerHTML = db.history.length ? db.history.map((x, i) => {
+      const open = x.names && openHist.has(i);
+      return `<div class="hcard${open ? ' open' : ''}">
+        <${x.names ? `button data-view="${i}" aria-expanded="${open}"` : 'div'} class="card">
+          <small>${fmtDate(x.createdAt)} · ${x.size} MCs</small>
+          <b>${x.champion ? '👑 ' + esc(x.champion) : 'sem campeão'}</b>${x.names ? `<i>${open ? '▴' : '▾'}</i>` : ''}
+        </${x.names ? 'button' : 'div'}>
+        ${open ? `<div class="mini">${bracket(x, { col: 170, row: 40, slotH: 30 })}</div>` : ''}</div>`;
+    }).join('') : '<p class="empty">Nenhuma batalha encerrada ainda.</p>';
     return;
   }
   const rows = rank(db.history);
@@ -282,21 +298,20 @@ function tap(match, winner) { cur().taps.push({ match, winner }); if (winner ===
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act], [data-tab], [data-view], [data-close]');
   if (!b) return;
-  const { act, tab: t, view } = b.dataset, s = cur(), openLive = () => { win = 'battle'; viewing = null; };
+  const { act, tab: t, view } = b.dataset, s = cur(), openLive = () => { win = 'battle'; };
   // mesmo botão de novo = fecha a janela e volta para a Home
-  if (t) { win = win === t && !b.matches('.cta') ? null : t; viewing = null; editing = false; }
-  if (b.dataset.close !== undefined) { win = null; viewing = null; editing = false; }
-  if (view !== undefined) { viewing = Number(view); render(); document.getElementById('scroll').scrollTo(0, 0); return; }
-  if (act === 'back') viewing = null;
+  if (t) { win = win === t && !b.matches('.cta') ? null : t; editing = false; }
+  if (b.dataset.close !== undefined) { win = null; editing = false; }
+  if (view !== undefined) { const i = Number(view); openHist.has(i) ? openHist.delete(i) : openHist.add(i); render(); return; }
   if (act === 'grow') { s.names = s.names.concat(Array(s.size).fill('')); s.size *= 2; }
   if (act === 'start') { s.started = true; editing = false; }
   if (act === 'undo') { s.taps.pop(); openLive(); } // abre a chave para o operador ver o que voltou
-  if (act === 'edit') { if (win === 'battle' && viewing === null) editing = !editing; else { openLive(); editing = true; } }
+  if (act === 'edit') { if (win === 'battle') editing = !editing; else { openLive(); editing = true; } }
   if (act === 'new') {
     if (!confirm('Encerrar esta batalha? Ela vai para o Histórico e conta no Ranking.')) return;
     const champ = derive(s).champion;
     // guarda a chave inteira (nomes + rounds) para poder rever o resultado depois
-    if (champ || s.taps.length) db.history.unshift({ ...s, champion: champ });
+    if (champ || s.taps.length) { db.history.unshift({ ...s, champion: champ }); openHist.clear(); } // índices mudam
     db.current = fresh(); editing = false;
   }
   commit();
