@@ -18,7 +18,7 @@ ação do operador → muda db.current → save() → render() → derive(curren
     overrides: { "1-0": "Zeca" },  // nomes digitados à mão em fases seguintes (repescagem)
     taps: [ { match: "0-0", winner: "0-1" }, { match: "0-0", winner: null } ]  // null = empate
   },
-  history: [ { createdAt, champion, size } ]
+  history: [ { ...current, champion } ]  // chave inteira; entradas antigas só têm { createdAt, champion, size }
 }
 ```
 
@@ -64,6 +64,7 @@ Desfazer é `taps.pop()`: como tudo é derivado, isso também desfaz um avanço.
 | `pointerup` antes do tempo | round para aquele slot |
 | timer completo | empate (`winner: null`) + `.flash` |
 | `pointercancel` / `pointerleave` | cancela |
+| clique no Histórico | `viewing = i`: `render()` desenha `db.history[i]` em modo leitura (sem inputs, toques nem sugestão); `back` volta |
 | `resize` | re-renderiza, exceto com campo focado |
 
 ## Auto-teste

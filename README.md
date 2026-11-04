@@ -21,7 +21,8 @@ Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **Um
 | Errou | `Desfazer` (desfaz rounds, empates e avanços, um por vez) |
 | Repescagem / MC atrasado | `Editar` → digite o nome na vaga vazia onde ele entra |
 | Ver outras fases | Arraste para o lado (cada fase ocupa uma tela) |
-| Encerrar | `Nova chave` (o campeão vai para o Histórico) |
+| Encerrar | `Nova chave` (a chave inteira vai para o Histórico) |
+| Rever uma batalha | `Histórico` → toque na data: abre a chave com nomes, bolinhas e campeão (só leitura) → `Voltar` |
 
 Regras de propósito:
 - **Não há ordem obrigatória.** O confronto sugerido pisca, mas dá para jogar qualquer um que tenha 2 nomes.

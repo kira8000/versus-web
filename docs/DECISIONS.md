@@ -10,7 +10,7 @@ Cada decisão traz o motivo. Mudar uma delas exige registrar aqui.
 - **Sem bye automático.** Tamanhos perfeitos são 4, 8 e 16. Com outro número de MCs, sobram vagas vazias, e o app assume repescagem ou MC que chega depois.
 - **Repescagem e sorteio ficam fora do app.** O operador só digita o nome na vaga (`Editar`). Nada é guardado além do texto (`overrides`).
 - **Nome digitado substitui o vencedor sem avisar.** É aceito: quem edita sabe o que está fazendo, e um aviso custaria um toque a mais.
-- **Histórico mínimo** (data, tamanho e campeão), só como registro.
+- **Histórico = a chave inteira** (nomes, overrides e rounds), que dá para reabrir em modo leitura. Arquiva se houver campeão ou pelo menos 1 round. Entradas antigas (só o campeão) continuam listadas, sem abrir. O formato só ganhou campos opcionais, por isso não houve `v2`.
 
 ## Técnica
 - **Um `index.html`, vanilla, sem build.** Custo mínimo de manutenção e de tokens, e deploy estático trivial.

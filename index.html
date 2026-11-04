@@ -13,6 +13,8 @@
   h1 { margin:0; font-size:36px; letter-spacing:10px; color:var(--win); text-shadow:0 0 14px #5fbf5f66; }
   details { display:inline-block; font-size:13px; color:#aaa; text-align:left; }
   details ol { margin:6px 0; padding-left:20px; }
+  button.hist { font:inherit; color:#ccc; background:none; border:0; padding:10px 0; min-height:44px; text-align:left; cursor:pointer; text-decoration:underline; }
+  button.hist.on { color:var(--glow); }
   [hidden] { display:none !important; }
   /* uma fase por tela; a barra de rolagem fica colada acima dos botões e precisa ser bem visível */
   #scroll { flex:1; overflow:auto; scroll-snap-type:x mandatory; scrollbar-color:#888 #2a2a2a; }
@@ -106,7 +108,7 @@ function derive({ size, names, overrides, taps }) {
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* modo privado: segue sem salvar */ } }
 const db = load() || { current: fresh(), history: [] };
-let editing = false, flashMatch = null;
+let editing = false, flashMatch = null, viewing = null; // viewing = índice no histórico aberto em modo leitura
 const cur = () => db.current;
 
 // ---------- render ----------
@@ -114,7 +116,8 @@ const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '
 const yOf = (c, i) => PAD + (i + 0.5) * 2 ** c * ROW;
 
 function render() {
-  const s = cur(), { cols, suggested, champion, playable } = derive(s), L = cols.length - 1;
+  const live = viewing === null, s = live ? cur() : db.history[viewing];
+  const d = derive(s), { cols, champion, playable } = d, L = cols.length - 1, suggested = live ? d.suggested : null, on = s.started && live;
   const board = document.getElementById('board'), sc = document.getElementById('scroll');
   COL = sc.clientWidth;
   ROW = Math.max(MIN_ROW, Math.floor((sc.clientHeight - PAD - 20) / s.size));
@@ -134,18 +137,18 @@ function render() {
       if (i % 2 === 0) {
         const decided = col[i].state !== 'open';
         svg += `<line x1="${lineEnd}" y1="${ym}" x2="${x + COL}" y2="${ym}" stroke="${decided ? 'var(--win)' : 'var(--open)'}"/>`;
-        if (s.started && playable.has(sl.match)) // área do confronto: segurar = empate
+        if (on && playable.has(sl.match)) // área do confronto: segurar = empate
           html += `<div class="area${sl.match === suggested ? ' suggested' : ''}" data-match="${sl.match}" style="left:${lineEnd - 10}px;top:${y}px;width:30px;height:${yOf(c, i + 1) - y}px"></div>`;
       }
     }
     const style = `left:${x}px;top:${y - 44}px;width:${lineEnd - x - 8}px`;
     if (last) { html += `<div class="slot ${champion ? 'champ' : ''}" style="${style}"><span class="nm">${esc(sl.name)}</span>${champion ? ' 👑' : ''}</div>`; return; }
-    const asInput = s.started ? (editing && sl.editable) : c === 0;
+    const asInput = s.started ? (on && editing && sl.editable) : c === 0;
     if (asInput) {
       html += `<input class="slot" data-slot="${sl.id}" value="${esc(c === 0 ? s.names[i] : (s.overrides[sl.id] ?? sl.name))}" aria-label="MC ${sl.id}" autocomplete="off" style="${style}">`;
     } else {
-      const cls = [sl.state, sl.match === suggested && 'suggested', s.started && sl.state === 'open' && sl.match !== suggested && 'dim', sl.match === flashMatch && 'flash'].filter(Boolean).join(' ');
-      const can = s.started && playable.has(sl.match);
+      const cls = [sl.state, sl.match === suggested && 'suggested', on && sl.state === 'open' && sl.match !== suggested && 'dim', sl.match === flashMatch && 'flash'].filter(Boolean).join(' ');
+      const can = on && playable.has(sl.match);
       html += `<button class="slot ${cls}" data-slot="${sl.id}" data-match="${sl.match}" ${can ? '' : 'disabled'} style="${style}"><span class="nm">${esc(sl.name)}</span><span class="dots">${'●'.repeat(sl.dots)}</span></button>`;
     }
   }));
@@ -153,7 +156,9 @@ function render() {
   flashMatch = null;
 
   const filled = s.names.filter(n => n.trim()).length;
-  document.getElementById('bar').innerHTML = s.started
+  document.getElementById('bar').innerHTML = !live
+    ? `<button data-act="back" class="primary">← Voltar à chave atual</button>`
+    : s.started
     ? `<button data-act="undo" ${s.taps.length ? '' : 'disabled'}>↶ Desfazer</button>
        <button data-act="edit" class="${editing ? 'on' : ''}">✎ Editar</button>
        <button data-act="new">Nova chave</button>`
@@ -161,8 +166,9 @@ function render() {
        <button data-act="start" class="primary" ${filled >= 4 ? '' : 'disabled'}>Iniciar (${filled})</button>`;
 
   const h = document.getElementById('hist');
-  h.innerHTML = `<summary>Histórico (${db.history.length})</summary><ol>${db.history.map(x =>
-    `<li>${new Date(x.createdAt).toLocaleDateString('pt-BR')} · ${x.size} MCs · 👑 ${esc(x.champion)}</li>`).join('')}</ol>`;
+  // entradas antigas (antes da v3) só têm o campeão: listadas, mas sem chave para abrir
+  h.innerHTML = `<summary>Histórico (${db.history.length})</summary><ol>${db.history.map((x, i) =>
+    `<li>${x.names ? `<button class="hist${i === viewing ? ' on' : ''}" data-view="${i}">` : '<span>'}${new Date(x.createdAt).toLocaleDateString('pt-BR')} · ${x.size} MCs · ${x.champion ? '👑 ' + esc(x.champion) : 'sem campeão'}${x.names ? '</button>' : '</span>'}</li>`).join('')}</ol>`;
   h.hidden = !db.history.length;
 }
 
@@ -172,6 +178,7 @@ function tap(match, winner) { cur().taps.push({ match, winner }); if (winner ===
 
 document.getElementById('bar').addEventListener('click', e => {
   const act = e.target.closest('button')?.dataset.act, s = cur();
+  if (act === 'back') viewing = null;
   if (act === 'grow') { s.names = s.names.concat(Array(s.size).fill('')); s.size *= 2; }
   if (act === 'start') { s.started = true; editing = false; }
   if (act === 'undo') s.taps.pop();
@@ -179,10 +186,18 @@ document.getElementById('bar').addEventListener('click', e => {
   if (act === 'new') {
     if (!confirm('Encerrar esta chave e começar outra?')) return;
     const champ = derive(s).champion;
-    if (champ) db.history.unshift({ createdAt: s.createdAt, champion: champ, size: s.size });
+    // guarda a chave inteira (nomes + rounds) para poder rever o resultado depois
+    if (champ || s.taps.length) db.history.unshift({ ...s, champion: champ });
     db.current = fresh(); editing = false;
   }
   commit();
+});
+
+document.getElementById('hist').addEventListener('click', e => {
+  const i = e.target.closest('[data-view]')?.dataset.view;
+  if (i === undefined) return;
+  viewing = Number(i); editing = false; document.getElementById('hist').open = false;
+  render(); document.getElementById('scroll').scrollTo(0, 0);
 });
 
 const board = document.getElementById('board');

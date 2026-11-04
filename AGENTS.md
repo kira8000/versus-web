@@ -27,7 +27,7 @@ Detalhes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Invariantes (não quebre)
 
 - **Estado mínimo e derivado.** Não salve placar, vencedor ou campeão; derive. Desfazer é `taps.pop()`.
-- **Formato do save** `{ current: { id, createdAt, size, started, names[], overrides{}, taps[{match, winner|null}] }, history[{createdAt, champion, size}] }`. Mudar esse formato exige uma chave nova (`versus-web:v2`) e migração da v1. Senão o operador perde a chave no meio do evento.
+- **Formato do save** `{ current: { id, createdAt, size, started, names[], overrides{}, taps[{match, winner|null}] }, history[{ ...current, champion }] }`. Mudar esse formato exige uma chave nova (`versus-web:v2`) e migração da v1. Senão o operador perde a chave no meio do evento.
 - **IDs:** slot `c-i` (coluna, posição) e confronto `c-m` (slots `c-2m` e `c-2m+1`).
 - **Sem ordem obrigatória, sem bye automático, sem lógica de repescagem nem sorteio.** São decisões de produto: ver [docs/DECISIONS.md](docs/DECISIONS.md).
 - **Não re-renderizar com campo focado** (o teclado do celular redimensiona a tela).
