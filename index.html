@@ -55,7 +55,29 @@
   .empty { margin-top:48px; }
   [hidden] { display:none !important; }
   /* uma fase por tela; a barra de rolagem fica colada acima dos botões e precisa ser bem visível */
-  #scroll { flex:1; overflow:auto; scroll-snap-type:x mandatory; scrollbar-color:#888 #2a2a2a; }
+  /* janela CHAVE: chave em cima (com undo/redo flutuante), character select embaixo */
+  #arena { flex:1; min-height:0; position:relative; display:flex; }
+  .fab { position:absolute; top:10px; right:16px; z-index:2; display:flex; gap:8px; }
+  .fab button { width:48px; height:48px; border-radius:50%; font:inherit; font-size:22px; color:#eee; background:#2c2c2cee;
+                border:1px solid #555; box-shadow:0 4px 12px #0008; cursor:pointer; }
+  .fab button:disabled { opacity:.3; cursor:default; }
+  #select { flex:0 0 44%; min-height:0; display:flex; flex-direction:column; gap:10px; padding:10px 12px 12px;
+            border-top:1px solid #333; background:#1f1f1f; }
+  #add { display:flex; gap:8px; }
+  #add input { flex:1; min-width:0; min-height:48px; padding:0 14px; font:inherit; font-size:16px; color:#eee; background:#2a2a2a;
+               border:1px solid #444; border-radius:10px; outline:none; }
+  #add input:focus { border-color:var(--glow); }
+  #add button { min-height:48px; padding:0 16px; font:inherit; font-size:15px; font-weight:bold; background:var(--win); color:#111;
+                border:0; border-radius:10px; cursor:pointer; }
+  #grid { flex:1; min-height:0; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px; align-content:start; }
+  #grid .empty { grid-column:1 / -1; margin-top:12px; }
+  .mc { min-height:52px; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:2px; padding:6px 10px; font:inherit;
+        font-size:15px; font-weight:bold; color:#eee; background:#2c2c2c; border:1px solid #484848; border-radius:10px; text-align:left; cursor:pointer; }
+  .mc span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mc small { color:var(--glow); font-size:11px; font-weight:normal; }
+  .mc.used { opacity:.4; }
+  .mc:active { border-color:var(--glow); }
+  #scroll { flex:1; min-width:0; overflow:auto; scroll-snap-type:x mandatory; scrollbar-color:#888 #2a2a2a; }
   #scroll::-webkit-scrollbar { height:12px; width:6px; }
   #scroll::-webkit-scrollbar-track { background:#2a2a2a; }
   #scroll::-webkit-scrollbar-thumb { background:#888; border-radius:6px; }
@@ -68,8 +90,13 @@
           -webkit-user-select:none; -webkit-touch-callout:none; touch-action:manipulation; }
   .nm { overflow:hidden; text-overflow:ellipsis; min-width:0; }
   button.slot:not(:disabled) { cursor:pointer; }
-  input.slot { color:#eee; caret-color:var(--glow); outline:none; font-weight:bold; text-overflow:ellipsis; }
-  input.slot:focus { color:var(--glow); }
+  /* vaga iluminada: o próximo MC tocado na grade cai aqui */
+  .slot.pick { cursor:pointer; }
+  .slot.target { background:linear-gradient(transparent 55%, #ffd75e2a); box-shadow:inset 0 -4px 0 var(--glow); animation:pulse 1.1s ease-in-out infinite; }
+  .land { transform-origin:left bottom; animation:land .45s ease-out; }
+  @keyframes land { from { transform:scale(1.3); color:var(--glow); text-shadow:0 0 16px var(--glow); } }
+  .bump { display:inline-block; font-weight:inherit; animation:bump .45s ease-out; }
+  @keyframes bump { 40% { transform:scale(1.9); color:var(--glow); } }
   .slot.win { color:var(--win); } .slot.lose { color:var(--lose); } .slot.dim { opacity:.45; }
   .dots { flex:none; letter-spacing:2px; font-size:14px; }
   .slot.suggested, .area.suggested { animation:pulse 1.1s ease-in-out infinite; }
@@ -89,6 +116,8 @@
   nav button.active { color:var(--glow); border-color:var(--glow); }
   nav button.main.active { background:var(--win); color:#111; border-color:var(--win); box-shadow:0 0 14px #5fbf5f66; }
   nav button:disabled { opacity:.35; cursor:default; }
+  /* movimento reduzido: sem pulso nem pouso; a barra de segurar fica (é informação) */
+  @media (prefers-reduced-motion: reduce) { #win, .suggested, .target, .land, .bump, .flash { animation:none !important; } }
 </style>
 </head>
 <body>
@@ -97,19 +126,61 @@
   <div id="win" role="dialog" hidden>
     <div class="wh"><b id="wtitle"></b><button data-close aria-label="Fechar">✕</button></div>
     <div id="tools"></div>
-    <div id="scroll"><div id="board"></div></div>
+    <div id="arena">
+      <div id="scroll"><div id="board"></div></div>
+      <div class="fab"><button data-act="undo" aria-label="Desfazer">↶</button><button data-act="redo" aria-label="Refazer">↷</button></div>
+    </div>
+    <section id="select" hidden>
+      <form id="add"><input id="addName" placeholder="Novo MC" aria-label="Nome do novo MC" autocomplete="off" enterkeyhint="done"><button>Adicionar</button></form>
+      <div id="grid"></div>
+    </section>
     <main id="page" hidden></main>
   </div>
 </div>
 <nav id="bar"></nav>
 <script>
-const KEY = 'versus-web:v1', HOLD_MS = 1200, PAD = 28, MIN_ROW = 56;
+const KEY = 'versus-web:v2', KEY_V1 = 'versus-web:v1', HOLD_MS = 1200, PAD = 28, LIVE_PAD = 76, MIN_ROW = 60;
 let ROW = 60, COL = 300; // recalculados no render: 1 coluna = largura da tela, 1ª fase = altura útil
 
 // ---------- lógica pura ----------
+// Chave v2 = linha do tempo: events (place | round | draw) + cursor. Undo/redo só move o cursor.
 function fresh(size = 4) {
-  return { id: String(Date.now()), createdAt: Date.now(), size, started: false, names: Array(size).fill(''), overrides: {}, taps: [] };
+  return { id: String(Date.now()), createdAt: Date.now(), size, events: [], cursor: 0 };
 }
+
+// Replay dos eventos até o cursor → formato que derive() entende ({ names, overrides, taps }). Entrada v1 passa direto.
+function view(s) {
+  if (!s.events) return s;
+  const names = Array(s.size).fill(''), overrides = {}, taps = [];
+  for (const e of s.events.slice(0, s.cursor)) {
+    if (e.t === 'place') { if (e.slot.startsWith('0-')) names[+e.slot.slice(2)] = e.name; else overrides[e.slot] = e.name; }
+    else taps.push({ match: e.match, winner: e.t === 'round' ? e.winner : null });
+  }
+  return { size: s.size, names, overrides, taps };
+}
+// Ação nova descarta o que estava no redo (comportamento de editor).
+function push(s, ev) { s.events = s.events.slice(0, s.cursor); s.events.push(ev); s.cursor = s.events.length; return s; }
+function undo(s) { if (s.cursor > 0) s.cursor--; return s; }
+function redo(s) { if (s.cursor < s.events.length) s.cursor++; return s; }
+
+// Slot iluminado: a vaga vazia escolhida (pick) ou a 1ª vaga vazia da 1ª fase. Fases seguintes só por toque (repescagem).
+function target(s, pick = null) {
+  const { cols } = derive(view(s)), L = cols.length - 1;
+  if (pick) { const [c, i] = pick.split('-').map(Number); if (c < L && cols[c][i] && !cols[c][i].name) return pick; }
+  const i = cols[0].findIndex(x => !x.name);
+  return i < 0 ? null : `0-${i}`;
+}
+
+// v1 → v2: names viram place na 1ª fase, taps viram round/draw, overrides viram place nas fases seguintes.
+function toV2(x) {
+  if (!x || !x.names) return x; // entrada antiga do histórico: só o campeão
+  const { names, overrides = {}, taps = [], started, ...rest } = x, events = [];
+  names.forEach((n, i) => { if (n && n.trim()) events.push({ t: 'place', slot: `0-${i}`, name: n }); });
+  taps.forEach(t => events.push(t.winner === null ? { t: 'draw', match: t.match } : { t: 'round', match: t.match, winner: t.winner }));
+  Object.entries(overrides).forEach(([slot, name]) => { if (name && name.trim()) events.push({ t: 'place', slot, name }); });
+  return { ...rest, events, cursor: events.length };
+}
+const migrate = v1 => ({ current: toV2(v1.current), history: (v1.history || []).map(toV2) });
 
 // Tudo (placar, avanço, confronto sugerido, campeão) sai de names + overrides + taps.
 function derive({ size, names, overrides, taps }) {
@@ -146,7 +217,7 @@ function rank(history) {
     return m.get(k);
   };
   for (const h of history) {
-    const d = h.names ? derive(h) : null, champ = d ? d.champion : h.champion; // entrada antiga: só o título
+    const d = h.names || h.events ? derive(view(h)) : null, champ = d ? d.champion : h.champion; // entrada antiga: só o título
     if (d) d.cols.slice(0, -1).forEach(col => col.forEach((s, i) => {
       if (s.state !== 'win') return;
       const r = row(s.name); r.wins++; r.points += 3;
@@ -175,30 +246,62 @@ function rank(history) {
   const h = { size: 4, names: N, overrides: {}, taps: [...AA, t('0-1', '0-2'), t('0-1', '0-3'), t('0-1', '0-2'), t('1-0', '1-0'), t('1-0', '1-0')] };
   const rk = rank([h, { champion: 'a ', size: 4 }]);
   console.assert(rk[0].name === 'A' && rk[0].points === 18 && rk[0].titles === 2 && rk[1].name === 'C' && rk[1].points === 3, 'ranking');
+
+  // linha do tempo v2
+  const s = fresh(4), P = (name, pick) => push(s, { t: 'place', slot: target(s, pick), name }), R = (m, w) => push(s, { t: 'round', match: m, winner: w });
+  P('A');
+  console.assert(view(s).names[0] === 'A' && target(s) === '0-1', 'place vai para o slot iluminado');
+  console.assert(target(s, '0-3') === '0-3' && target(s, '0-0') === '0-1', 'tocar vaga vazia move o destaque');
+  P('D', '0-3'); P('B'); P('C');
+  console.assert(view(s).names.join('') === 'ABCD' && target(s) === null, 'montagem fora de ordem');
+  R('0-0', '0-0'); R('0-0', '0-0');
+  console.assert(derive(view(s)).cols[1][0].name === 'A', 'round pela timeline');
+  undo(s);
+  console.assert(derive(view(s)).cols[1][0].name === '' && derive(view(s)).cols[0][0].dots === 1, 'undo de round');
+  undo(s); undo(s);
+  console.assert(view(s).names[2] === '' && target(s) === '0-2', 'undo de place');
+  redo(s); redo(s); redo(s);
+  console.assert(derive(view(s)).cols[1][0].name === 'A' && s.cursor === s.events.length, 'redo');
+  undo(s); push(s, { t: 'draw', match: '0-0' });
+  console.assert(s.events.length === 6 && s.cursor === 6 && s.events[5].t === 'draw' && derive(view(s)).cols[0][0].dots === 1, 'ação nova limpa o redo');
+
+  // migração v1 → v2: mesmo placar, campeão e ranking
+  const sig = x => { const r = derive(view(x)); return JSON.stringify([r.cols.map(c => c.map(y => [y.name, y.dots, y.state])), r.champion]); };
+  const v1 = { current: { id: '1', createdAt: 1, size: 4, started: true, names: N, overrides: { '1-1': 'Z' }, taps: [t('0-0', '0-0'), t('0-0', null), t('0-0', '0-0')] },
+               history: [{ ...h, id: '0', createdAt: 0, started: true, champion: 'A' }, { createdAt: 0, champion: 'a ', size: 4 }] };
+  const m = migrate(v1);
+  console.assert(sig(m.current) === sig(v1.current) && sig(m.history[0]) === sig(v1.history[0]) && !('names' in m.current)
+    && JSON.stringify(rank(m.history)) === JSON.stringify(rank(v1.history)) && m.history[1].champion === 'a ' && !m.history[1].events, 'migração v1 → v2');
 })();
 
 // ---------- estado + storage ----------
-function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } }
+// v2 primeiro; sem v2, migra a v1. A v1 nunca é apagada nem sobrescrita: fica como backup.
+const read = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+function load() { const v2 = read(KEY); if (v2 && v2.current) return v2; const v1 = read(KEY_V1); return v1 && v1.current ? migrate(v1) : null; }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* modo privado: segue sem salvar */ } }
 const db = load() || { current: fresh(), history: [] };
+if (!read(KEY) && read(KEY_V1)) save(); // acabou de migrar: grava a v2 (a v1 continua lá)
 const cur = () => db.current;
+// Estado de tela, nunca salvo:
 // win = janela aberta sobre a Home (null | 'battle' | 'hist' | 'rank'); recarregar no meio da batalha volta direto para a chave.
-// Estado de tela, nunca salvo. openHist = cards do histórico expandidos (como o ExpansionTile do mobile-versus).
-let win = cur().started ? 'battle' : null, editing = false, flashMatch = null;
+// pick = vaga vazia escolhida com toque; fx = animação da última ação; openHist = cards do histórico expandidos.
+let win = cur().events.length ? 'battle' : null, pick = null, fx = {};
 const openHist = new Set();
 
 // ---------- render ----------
 const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const key = n => n.trim().toLowerCase();
 
 const fmtDate = ms => new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
-// Desenha a chave de `s`. live = palco (toques, inputs, sugestão); senão só leitura (histórico).
-function bracket(s, { col, row, slotH = 44, live = false }) {
-  const d = derive(s), { cols, champion, playable } = d, L = cols.length - 1, suggested = live ? d.suggested : null, on = s.started && live;
-  const yOf = (c, i) => PAD + (i + 0.5) * 2 ** c * row;
-  const W = (L + 1) * col, H = s.size * row + PAD;
+// Desenha a chave de `s`. live = palco (toques, vaga iluminada, laterais do colchete); senão só leitura (histórico).
+function bracket(s, { col, row, slotH = 44, pad = PAD, live = false, tgt = null }) {
+  const d = derive(view(s)), { cols, champion, playable } = d, L = cols.length - 1, suggested = live && !tgt ? d.suggested : null;
+  const yOf = (c, i) => pad + (i + 0.5) * 2 ** c * row;
+  const W = (L + 1) * col, H = s.size * row + pad;
   const color = st => st === 'win' ? 'var(--win)' : st === 'lose' ? 'var(--lose)' : 'var(--open)';
-  let svg = '', html = '';
+  const land = new Set(live && fx.land || []);
+  let svg = '', areas = '', html = '';
 
   cols.forEach((cl, c) => cl.forEach((sl, i) => {
     const x = c * col + 16, y = yOf(c, i), last = c === L;
@@ -211,62 +314,89 @@ function bracket(s, { col, row, slotH = 44, live = false }) {
       if (i % 2 === 0) {
         const decided = cl[i].state !== 'open';
         svg += `<line x1="${lineEnd}" y1="${ym}" x2="${x + col}" y2="${ym}" stroke="${decided ? 'var(--win)' : 'var(--open)'}"/>`;
-        if (on && playable.has(sl.match)) // área do confronto: segurar = empate
-          html += `<div class="area${sl.match === suggested ? ' suggested' : ''}" data-match="${sl.match}" style="left:${lineEnd - 10}px;top:${y}px;width:30px;height:${yOf(c, i + 1) - y}px"></div>`;
+        // laterais do colchete: metade de cima = round do MC de cima, de baixo = do MC de baixo; segurar = empate
+        if (live && playable.has(sl.match)) {
+          const yb = yOf(c, i + 1), sg = sl.match === suggested ? ' suggested' : '';
+          const area = (top, bot, id) => `<div class="area${sg}" data-match="${sl.match}" data-slot="${id}" style="left:${lineEnd - 28}px;top:${top}px;width:56px;height:${bot - top}px"></div>`;
+          areas += area(y - 36, ym, sl.id) + area(ym, yb + 24, cl[i + 1].id);
+        }
       }
     }
     const style = `left:${x}px;top:${y - slotH}px;width:${lineEnd - x - 8}px;height:${slotH}px`;
-    if (last) { html += `<div class="slot ${champion ? 'champ' : ''}" style="${style}"><span class="nm">${esc(sl.name)}</span>${champion ? ' 👑' : ''}</div>`; return; }
-    const asInput = live && (s.started ? (editing && sl.editable) : c === 0);
-    if (asInput) {
-      html += `<input class="slot" data-slot="${sl.id}" value="${esc(c === 0 ? s.names[i] : (s.overrides[sl.id] ?? sl.name))}" aria-label="MC ${sl.id}" autocomplete="off" style="${style}">`;
-    } else {
-      const cls = [sl.state, sl.match === suggested && 'suggested', on && sl.state === 'open' && sl.match !== suggested && 'dim', live && sl.match === flashMatch && 'flash'].filter(Boolean).join(' ');
-      const can = on && playable.has(sl.match);
-      html += `<button class="slot ${cls}" data-slot="${sl.id}" data-match="${sl.match}" ${can ? '' : 'disabled'} style="${style}"><span class="nm">${esc(sl.name)}</span><span class="dots">${'●'.repeat(sl.dots)}</span></button>`;
+    const fxc = land.has(sl.id) ? ' land' : '';
+    if (last) { html += `<div class="slot${champion ? ' champ' : ''}${fxc}" style="${style}"><span class="nm">${esc(sl.name)}</span>${champion ? ' 👑' : ''}</div>`; return; }
+    if (live && !sl.name) { // vaga vazia: tocar move o destaque para ela
+      html += `<button class="slot pick${sl.id === tgt ? ' target' : ''}${fxc}" data-pick="${sl.id}" aria-label="Vaga ${sl.id}" style="${style}"></button>`;
+      return;
     }
+    const cls = [sl.state, sl.match === suggested && 'suggested', live && !tgt && sl.state === 'open' && sl.match !== suggested && 'dim', live && sl.match === fx.flash && 'flash'].filter(Boolean).join(' ');
+    const can = live && playable.has(sl.match);
+    const dots = live && fx.bump === sl.id && sl.dots ? '●'.repeat(sl.dots - 1) + '<b class="bump">●</b>' : '●'.repeat(sl.dots);
+    html += `<button class="slot ${cls}${fxc}" data-slot="${sl.id}" data-match="${sl.match}" ${can ? '' : 'disabled'} style="${style}"><span class="nm">${esc(sl.name)}</span><span class="dots">${dots}</span></button>`;
   }));
-  return `<div class="bk" style="width:${W}px;height:${H}px"><svg width="${W}" height="${H}" stroke-width="3">${svg}</svg>${html}</div>`;
+  return `<div class="bk" style="width:${W}px;height:${H}px"><svg width="${W}" height="${H}" stroke-width="3">${svg}</svg>${areas}${html}</div>`;
+}
+
+// Cartas do character select: ranking (ordem de pontos), depois quem já apareceu no histórico ou na chave atual.
+function roster() {
+  const seen = new Map(), add = (n, pts) => { if (n && n.trim() && !seen.has(key(n))) seen.set(key(n), { name: n.trim(), pts }); };
+  rank(db.history).forEach(r => add(r.name, r.points));
+  [...db.history.filter(h => h.events || h.names), cur()].map(view)
+    .forEach(v => [...v.names, ...Object.values(v.overrides)].forEach(n => add(n, 0)));
+  return [...seen.values()];
 }
 
 function render() {
-  const c0 = cur(), liveBoard = win === 'battle';
-  const nb = (attr, icon, label, cls = '', disabled = false) =>
-    `<button ${attr} class="${cls}" ${disabled ? 'disabled' : ''}><i>${icon}</i>${label}</button>`;
+  const c0 = cur(), v0 = view(c0), liveBoard = win === 'battle', played = v0.taps.length > 0;
+  const nb = (attr, icon, label, cls = '') => `<button ${attr} class="${cls}"><i>${icon}</i>${label}</button>`;
   document.getElementById('bar').innerHTML =
     nb('data-tab="hist"', '☰', 'HISTÓRICO', win === 'hist' ? 'active' : '') +
-    nb('data-act="undo"', '↶', 'DESFAZER', '', !(c0.started && c0.taps.length)) +
     nb('data-tab="battle"', '⚔', 'CHAVE', 'main' + (liveBoard ? ' active' : '')) +
-    nb('data-act="edit"', '✎', 'EDITAR', liveBoard && editing ? 'active' : '', !c0.started) +
     nb('data-tab="rank"', '★', 'RANKING', win === 'rank' ? 'active' : '');
-  const filledNow = c0.names.filter(n => n.trim()).length;
+  const filled = v0.names.filter(n => n.trim()).length;
   document.getElementById('home').innerHTML = `<h1>VERSUS</h1>
-    <button class="cta" data-tab="battle">${c0.started ? 'Voltar à batalha' : 'Batalhar'}</button>
-    <small>${c0.started ? `Chave ao vivo · ${c0.size} MCs` : filledNow ? `Chave em montagem · ${filledNow} MCs` : 'Monte a chave e comece'}</small>`;
+    <button class="cta" data-tab="battle">${played ? 'Voltar à batalha' : 'Batalhar'}</button>
+    <small>${played ? `Chave ao vivo · ${c0.size} MCs` : filled ? `Chave em montagem · ${filled} MCs` : 'Monte a chave e comece'}</small>`;
   document.getElementById('win').hidden = !win;
   if (!win) return;
 
-  const showBoard = liveBoard;
   document.getElementById('wtitle').textContent = win === 'rank' ? 'RANKING'
-    : win === 'hist' ? 'HISTÓRICO' : c0.started ? 'CHAVE · AO VIVO' : 'NOVA CHAVE';
-  document.getElementById('scroll').hidden = !showBoard;
-  document.getElementById('page').hidden = showBoard;
-  const tools = document.getElementById('tools');
-  if (!showBoard) { tools.innerHTML = ''; tools.hidden = true; renderPage(); return; }
-  tools.hidden = false;
+    : win === 'hist' ? 'HISTÓRICO' : played ? 'CHAVE · AO VIVO' : 'NOVA CHAVE';
+  const tools = document.getElementById('tools'), arena = document.getElementById('arena'), sel = document.getElementById('select');
+  arena.hidden = !liveBoard; tools.hidden = !liveBoard;
+  document.getElementById('page').hidden = liveBoard;
+  if (!liveBoard) { sel.hidden = true; renderPage(); return; }
 
-  const s = cur(), sc = document.getElementById('scroll');
+  // ações da janela; undo/redo ficam no botão flutuante da chave
+  tools.innerHTML = (played ? '<small>Toque = round · segure = empate</small>'
+    : `<button data-act="grow" ${c0.size >= 16 ? 'disabled' : ''}>+ vagas (${c0.size}→${Math.min(c0.size * 2, 16)})</button>`)
+    + `<button data-act="new" ${c0.events.length ? '' : 'disabled'}>Encerrar</button>`;
+  document.querySelector('[data-act="undo"]').disabled = c0.cursor === 0;
+  document.querySelector('[data-act="redo"]').disabled = c0.cursor === c0.events.length;
+
+  // character select só aparece quando há vaga iluminada; com a chave cheia, a batalha ganha a janela inteira
+  const tgt = target(c0, pick);
+  sel.hidden = !tgt;
+  if (tgt) {
+    const used = new Set([...v0.names, ...Object.values(v0.overrides)].filter(n => n.trim()).map(key)), list = roster();
+    document.getElementById('grid').innerHTML = list.length ? list.map(r => `<button class="mc${used.has(key(r.name)) ? ' used' : ''}" data-mc="${esc(r.name)}">
+        <span>${esc(r.name)}</span>${r.pts ? `<small>${r.pts} pts</small>` : ''}</button>`).join('')
+      : '<p class="empty">Adicione os MCs da batalha.</p>';
+  }
+
+  const sc = document.getElementById('scroll');
   COL = sc.clientWidth;
-  ROW = Math.max(MIN_ROW, Math.floor((sc.clientHeight - PAD - 20) / s.size));
-  document.getElementById('board').innerHTML = bracket(s, { col: COL, row: ROW, live: true });
-  flashMatch = null;
-
-  // Desfazer e Editar ficam na barra inferior; aqui só o que é da janela (montar, encerrar, voltar)
-  const filled = s.names.filter(n => n.trim()).length;
-  tools.innerHTML = s.started
-    ? `<small>${editing ? 'Editando vagas' : 'Toque = round · segure = empate'}</small><button data-act="new">Encerrar</button>`
-    : `<button data-act="grow" ${s.size >= 16 ? 'disabled' : ''}>+ vagas (${s.size}→${Math.min(s.size * 2, 16)})</button>
-       <button data-act="start" class="primary" ${filled >= 4 ? '' : 'disabled'}>Iniciar (${filled})</button>`;
+  ROW = Math.max(MIN_ROW, Math.floor((sc.clientHeight - LIVE_PAD - 20) / c0.size));
+  document.getElementById('board').innerHTML = bracket(c0, { col: COL, row: ROW, slotH: 48, pad: LIVE_PAD, live: true, tgt });
+  fx = {};
+  // a vaga iluminada sempre à vista (a metade de cima é baixa durante a montagem)
+  const te = document.querySelector('#board .target');
+  if (te) {
+    const top = te.offsetTop, bot = top + te.offsetHeight;
+    if (top - 64 < sc.scrollTop) sc.scrollTop = top - 64; // 64 = respiro do undo/redo flutuante
+    else if (bot + 12 > sc.scrollTop + sc.clientHeight) sc.scrollTop = bot + 12 - sc.clientHeight;
+    if (te.offsetLeft < sc.scrollLeft || te.offsetLeft >= sc.scrollLeft + COL) sc.scrollLeft = Math.floor(te.offsetLeft / COL) * COL;
+  }
 }
 
 function renderPage() {
@@ -274,12 +404,12 @@ function renderPage() {
   if (win === 'hist') {
     // card expande no lugar com a chave (só leitura); entradas antigas só têm o campeão e não expandem
     page.innerHTML = db.history.length ? db.history.map((x, i) => {
-      const open = x.names && openHist.has(i);
+      const full = !!(x.events || x.names), open = full && openHist.has(i);
       return `<div class="hcard${open ? ' open' : ''}">
-        <${x.names ? `button data-view="${i}" aria-expanded="${open}"` : 'div'} class="card">
+        <${full ? `button data-view="${i}" aria-expanded="${open}"` : 'div'} class="card">
           <small>${fmtDate(x.createdAt)} · ${x.size} MCs</small>
-          <b>${x.champion ? '👑 ' + esc(x.champion) : 'sem campeão'}</b>${x.names ? `<i>${open ? '▴' : '▾'}</i>` : ''}
-        </${x.names ? 'button' : 'div'}>
+          <b>${x.champion ? '👑 ' + esc(x.champion) : 'sem campeão'}</b>${full ? `<i>${open ? '▴' : '▾'}</i>` : ''}
+        </${full ? 'button' : 'div'}>
         ${open ? `<div class="mini">${bracket(x, { col: 170, row: 40, slotH: 30 })}</div>` : ''}</div>`;
     }).join('') : '<p class="empty">Nenhuma batalha encerrada ainda.</p>';
     return;
@@ -293,42 +423,52 @@ function renderPage() {
 
 // ---------- ações ----------
 function commit() { save(); render(); }
-function tap(match, winner) { cur().taps.push({ match, winner }); if (winner === null) flashMatch = match; commit(); }
+// Feedback de cada evento: MC pousa na vaga, bolinha pulsa, vencedor sobe; empate pisca o confronto.
+function fxOf(ev, s, forward = true) {
+  if (ev.t === 'place') return { land: [ev.slot] };
+  if (ev.t === 'draw' || !forward) return { flash: ev.match };
+  const [c, m] = ev.match.split('-').map(Number), won = derive(view(s)).cols[c][+ev.winner.split('-')[1]].state === 'win';
+  return { bump: ev.winner, land: won ? [`${c + 1}-${m}`] : [] };
+}
+function act(ev) { const s = cur(); push(s, ev); fx = fxOf(ev, s); if (ev.t === 'place') pick = null; commit(); }
+function place(name) { const slot = target(cur(), pick); if (slot && name.trim()) act({ t: 'place', slot, name: name.trim() }); }
+function tap(match, winner) { act(winner ? { t: 'round', match, winner } : { t: 'draw', match }); }
 
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-act], [data-tab], [data-view], [data-close]');
+  const b = e.target.closest('[data-act], [data-tab], [data-view], [data-close], [data-pick], [data-mc]');
   if (!b) return;
-  const { act, tab: t, view } = b.dataset, s = cur(), openLive = () => { win = 'battle'; };
+  const { act: a, tab: t, view: v, pick: p, mc } = b.dataset, s = cur();
+  if (p) { pick = pick === p ? null : p; render(); return; } // tocar de novo na vaga escolhida solta o destaque
+  if (mc !== undefined) { place(mc); return; }
   // mesmo botão de novo = fecha a janela e volta para a Home
-  if (t) { win = win === t && !b.matches('.cta') ? null : t; editing = false; }
-  if (b.dataset.close !== undefined) { win = null; editing = false; }
-  if (view !== undefined) { const i = Number(view); openHist.has(i) ? openHist.delete(i) : openHist.add(i); render(); return; }
-  if (act === 'grow') { s.names = s.names.concat(Array(s.size).fill('')); s.size *= 2; }
-  if (act === 'start') { s.started = true; editing = false; }
-  if (act === 'undo') { s.taps.pop(); openLive(); } // abre a chave para o operador ver o que voltou
-  if (act === 'edit') { if (win === 'battle') editing = !editing; else { openLive(); editing = true; } }
-  if (act === 'new') {
+  if (t) { win = win === t && !b.matches('.cta') ? null : t; pick = null; }
+  if (b.dataset.close !== undefined) { win = null; pick = null; }
+  if (v !== undefined) { const i = Number(v); openHist.has(i) ? openHist.delete(i) : openHist.add(i); render(); return; }
+  if (a === 'undo' && s.cursor > 0) { undo(s); fx = fxOf(s.events[s.cursor], s, false); }
+  if (a === 'redo' && s.cursor < s.events.length) { redo(s); fx = fxOf(s.events[s.cursor - 1], s); }
+  if (a === 'grow' && s.size < 16 && !view(s).taps.length) s.size *= 2;
+  if (a === 'new') {
     if (!confirm('Encerrar esta batalha? Ela vai para o Histórico e conta no Ranking.')) return;
-    const champ = derive(s).champion;
-    // guarda a chave inteira (nomes + rounds) para poder rever o resultado depois
-    if (champ || s.taps.length) { db.history.unshift({ ...s, champion: champ }); openHist.clear(); } // índices mudam
-    db.current = fresh(); editing = false;
+    const vs = view(s), champ = derive(vs).champion, events = s.events.slice(0, s.cursor);
+    // guarda a chave inteira (eventos até o cursor) para poder rever o resultado depois
+    if (champ || vs.taps.length) { db.history.unshift({ ...s, events, cursor: events.length, champion: champ }); openHist.clear(); } // índices mudam
+    db.current = fresh(); pick = null;
   }
   commit();
 });
 
-const board = document.getElementById('board');
-board.addEventListener('input', e => {
-  const id = e.target.dataset.slot, [c, i] = id.split('-').map(Number), s = cur(), v = e.target.value;
-  if (c === 0) s.names[i] = v; else if (v.trim()) s.overrides[id] = v; else delete s.overrides[id];
-  save();
+document.getElementById('add').addEventListener('submit', e => {
+  e.preventDefault();
+  const input = document.getElementById('addName');
+  place(input.value); input.value = '';
 });
-board.addEventListener('change', render); // ao sair do campo: atualiza chave/botões sem perder foco durante a digitação
+document.getElementById('addName').addEventListener('blur', () => setTimeout(render, 0)); // teclado fechou: remede a tela
 
-// Toque = round para o MC; segurar HOLD_MS (nome ou área do confronto) = empate.
+// Toque = round para o MC (nome ou lateral do colchete); segurar HOLD_MS = empate.
+const board = document.getElementById('board');
 let hold = null;
 board.addEventListener('pointerdown', e => {
-  const el = e.target.closest('button.slot:not(:disabled), .area');
+  const el = e.target.closest('button.slot[data-match]:not(:disabled), .area');
   if (!el) return;
   const match = el.dataset.match, parts = board.querySelectorAll(`[data-match="${match}"]`);
   parts.forEach(p => p.classList.add('holding'));
@@ -339,15 +479,15 @@ function endHold(e, fire) {
   clearTimeout(hold.timer);
   hold.parts.forEach(p => p.classList.remove('holding'));
   const h = hold; hold = null;
-  if (fire && h.el.matches('button.slot') && h.el.contains(e.target)) tap(h.match, h.el.dataset.slot);
+  if (fire && h.el.contains(e.target)) tap(h.match, h.el.dataset.slot);
 }
 board.addEventListener('pointerup', e => endHold(e, true));
 board.addEventListener('pointercancel', e => endHold(e, false));
 board.addEventListener('pointerleave', e => endHold(e, false));
 board.addEventListener('contextmenu', e => e.preventDefault());
 
-// Não re-renderiza com campo focado: abrir o teclado no celular redimensiona a tela e fecharia o campo.
-addEventListener('resize', () => { if (!document.activeElement?.matches('input.slot')) render(); });
+// Não re-renderiza com campo focado: abrir o teclado no celular redimensiona a tela.
+addEventListener('resize', () => { if (!document.activeElement?.matches('input')) render(); });
 render(); render(); // 2º passe mede a altura já com a barra de botões preenchida
 </script>
 </body>
