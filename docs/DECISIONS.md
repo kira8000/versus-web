@@ -30,3 +30,5 @@ Cada decisão traz o motivo. Mudar uma delas exige registrar aqui.
 ## Histórico do processo
 - v1: prompt do Gemini → Claude Code. A revisão está em [GEMINI_REVIEW.md](GEMINI_REVIEW.md).
 - v2: polimento de UI pedido pelo Gemini com base nessa revisão.
+- v3: histórico guarda a chave inteira e reabre em modo leitura.
+- v4: navbar com 3 abas (Histórico · Batalha · Ranking), ações no topo do palco, ranking com a regra do `service-versus`.

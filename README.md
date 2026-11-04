@@ -1,12 +1,23 @@
 # Versus Web
 
-Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **Uma tela só, e a própria chave é a interface**: você digita os nomes nos galhos, inicia, e toca em quem venceu cada round.
+Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **A própria chave é a interface**: você digita os nomes nos galhos, inicia, e toca em quem venceu cada round. Encerrou, a batalha vai para o **Histórico** e soma no **Ranking**.
 
 - **No ar:** https://versusproject.vercel.app/
 - **Código:** um único [`index.html`](index.html) com HTML, CSS e JS vanilla. Sem build e sem dependências.
 - **Dados:** `localStorage` do navegador. Não tem backend nem login.
 
 É o MVP enxuto do **Mobile Versus** (app Flutter + API `service-versus`), que ficou pesado demais para o operador no meio da batalha. A ideia é validar aqui a interação simples e depois levar essa simplicidade de volta ao app.
+
+## Funcionalidades
+
+| Tela | O que tem |
+|------|-----------|
+| **BATALHA** | Chave de 4, 8 ou 16 vagas; 1 fase por tela (arrasta para o lado); round com 1 toque; empate segurando; desfazer ilimitado; repescagem editando a vaga; confronto sugerido piscando; campeão com 👑 |
+| **HISTÓRICO** | Todas as batalhas encerradas (data, tamanho, campeão); toque abre a chave completa em modo leitura |
+| **RANKING** | Tabela por MC: pontos, vitórias, vitórias 2x0, títulos; top 3 em destaque |
+| Sempre | Salva sozinho no navegador a cada toque; recarregar continua de onde parou; funciona offline depois de aberto uma vez* |
+
+\* O app é um único arquivo estático: depois de carregado, nada depende da rede. Não há service worker, então abrir do zero sem internet não funciona.
 
 ## Como usar (operador)
 
@@ -45,6 +56,18 @@ Depois acesse http://localhost:5178. O auto-teste roda ao carregar a página: qu
 ## Deploy
 
 Vercel (projeto `versusproject`, preset **Other**, sem build). Cada push na `main` publica sozinho.
+
+## Limitações conhecidas
+
+- Os dados ficam **só no navegador daquele aparelho**. Trocar de celular, limpar os dados do site ou usar aba anônima perde o histórico e o ranking.
+- Não dá para apagar uma batalha do histórico nem renomear um MC no ranking: o nome conta exatamente como foi digitado (ignorando maiúsculas e espaços nas pontas).
+- "Segurar para empate" foi testado por script; falta validar com o dedo em aparelho real.
+
+## Próximos passos (não implementados)
+
+- Exportar/importar o histórico (JSON) para não depender de um aparelho só.
+- Integrar com a API `service-versus` (`/v1/editions/...`) quando o fluxo simples estiver validado.
+- Levar a interação "a chave é a interface" de volta para o Mobile Versus.
 
 ## Para quem vai mexer no código
 

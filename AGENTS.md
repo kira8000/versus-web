@@ -1,6 +1,6 @@
 # Agent guidelines — versus-web
 
-Chave de batalha de MCs no navegador. **Um arquivo: `index.html`** (CSS + JS vanilla inline). Sem build, sem dependências, sem backend. Deploy estático na Vercel a cada push na `main`.
+Chave de batalha de MCs no navegador, com Histórico e Ranking. **Um arquivo: `index.html`** (CSS + JS vanilla inline). Sem build, sem dependências, sem backend. Deploy estático na Vercel a cada push na `main`.
 
 ## Comandos
 
@@ -15,12 +15,14 @@ python -m http.server 5178   # http://localhost:5178
 
 | Bloco | O que faz |
 |-------|-----------|
-| `<style>` | Tema (variáveis em `:root`), layout em coluna de altura total, barra de rolagem visível |
+| `<style>` | Tema (variáveis em `:root`), layout em coluna de altura total, barra de rolagem visível, abas |
 | `fresh()` / `derive()` | **Lógica pura.** Todo o placar sai de `names + overrides + taps` |
-| auto-teste | 7 `console.assert` sobre `derive()` |
+| `rank(history)` | **Lógica pura.** Ranking derivado do histórico (regra do `service-versus`: 3 / +1 / 5) |
+| auto-teste | 8 `console.assert` sobre `derive()` e `rank()` |
 | `load()` / `save()` | `localStorage["versus-web:v1"]`, sempre dentro de `try/catch` |
-| `render()` | Recalcula a geometria (`COL` = largura da tela, `ROW` = altura útil / vagas) e redesenha SVG + slots |
-| ações | Barra (`grow`, `start`, `undo`, `edit`, `new`), digitação (`input`/`change`), tocar e segurar (`pointer*`) |
+| `render()` | Navbar (abas) + `#tools`; na aba BATALHA recalcula a geometria (`COL` = largura da tela, `ROW` = altura útil / vagas) e redesenha SVG + slots |
+| `renderPage()` | Abas HISTÓRICO (cards) e RANKING (tabela) em `#page` |
+| ações | Um `click` no `document` para `data-tab`, `data-act` (`grow`, `start`, `undo`, `edit`, `new`, `back`) e `data-view`; digitação (`input`/`change`); tocar e segurar (`pointer*`) |
 
 Detalhes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -42,7 +44,7 @@ Detalhes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Fora de escopo (Fase 1)
 
-API, login, organizações, ranking, telão, double three, sorteio, i18n.
+API, login, organizações, telão, double three, sorteio, i18n, sincronização entre aparelhos.
 
 ## Relação com os outros repositórios
 

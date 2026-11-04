@@ -1,6 +1,6 @@
 # Arquitetura
 
-Tudo vive em `index.html`. O fluxo é sempre o mesmo:
+Tudo vive em `index.html`. Três telas (abas): BATALHA (chave), HISTÓRICO (lista) e RANKING (tabela). O fluxo é sempre o mesmo:
 
 ```
 ação do operador → muda db.current → save() → render() → derive(current) → SVG + slots
@@ -51,13 +51,13 @@ Desfazer é `taps.pop()`: como tudo é derivado, isso também desfaz um avanço.
 - Linhas em um `<svg>` atrás: horizontal sob o nome, vertical ligando o par, horizontal até a fase seguinte. A cor segue o `state` (verde, vermelho ou cinza).
 - Slot vira `<input>` na montagem (1ª fase) ou no modo `Editar` (slots editáveis). Senão vira `<button>` com o nome e as bolinhas.
 - `.area` = faixa invisível sobre o colchete do confronto jogável, para segurar e marcar empate.
-- Na carga, `render()` roda 2 vezes: o 2º passe mede a altura com a barra de botões já preenchida.
+- Na carga, `render()` roda 2 vezes: o 2º passe mede a altura com a navbar já preenchida.
 
 ## Eventos
 
 | Evento | Efeito |
 |--------|--------|
-| `click` na barra | `grow` (dobra `size` e `names`), `start`, `undo`, `edit` (liga/desliga), `new` (arquiva o campeão e cria `fresh()`) |
+| `click` em `data-act` (`#tools`) | `grow` (dobra `size` e `names`), `start`, `undo`, `edit` (liga/desliga), `new` = Encerrar (arquiva a chave inteira e cria `fresh()`), `back` (sai do modo leitura) |
 | `input` | atualiza `names` ou `overrides` e salva, **sem re-renderizar** (mantém o foco) |
 | `change` | re-renderiza ao sair do campo |
 | `pointerdown` | inicia o timer de 1200 ms e a classe `.holding` (barra enchendo) no confronto |
