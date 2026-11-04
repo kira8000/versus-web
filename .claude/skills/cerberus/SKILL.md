@@ -27,15 +27,15 @@ O app é usado ao vivo, no celular, num ambiente barulhento. Um erro aqui trava 
 
 ## Cabeça 1 — UX de palco
 
-1. **Um toque por round.** Nada de confirmação, modal ou tela extra no fluxo ao vivo. A janela da chave fica aberta durante o ao vivo; a barra inferior abre/fecha janelas e tem só `Desfazer` e `Editar` como ação (o resto fica em `#tools`).
-2. **Feedback imediato:** bolinha, cor (verde = vence, vermelho = perde), pulso no sugerido, barra ao segurar.
-3. **Alvos de toque ≥ 44px.** Legível a 1 braço de distância. Contraste ≥ 4.5:1. Estado nunca só por cor: bolinhas e 👑 reforçam.
-4. **Flexibilidade:** sem ordem obrigatória e sem bloquear edição de vagas não disputadas.
+1. **Um toque por round.** Nada de confirmação, modal ou tela extra no fluxo ao vivo. A janela da chave fica aberta durante o ao vivo; a barra inferior só abre/fecha janelas (HISTÓRICO · CHAVE · RANKING). Undo/redo ficam no botão flutuante da chave; `+ vagas` e `Encerrar` em `#tools`.
+2. **Feedback imediato:** vaga iluminada, MC pousando na vaga, bolinha pulsando, cor (verde = vence, vermelho = perde), vencedor subindo, barra ao segurar. Respeite `prefers-reduced-motion`.
+3. **Alvos de toque ≥ 48px** (nome, lateral do colchete, carta, undo/redo). Legível a 1 braço de distância. Contraste ≥ 4.5:1. Estado nunca só por cor: bolinhas e 👑 reforçam.
+4. **Flexibilidade:** sem ordem obrigatória; qualquer vaga vazia aceita um MC (repescagem); todo erro volta com undo.
 5. **Sem ruído:** nada de placeholder, traço ou caixa que não seja o galho.
 
 ## Cabeça 2 — Engenharia
 
-1. Estado mínimo: `names`, `overrides` e `taps`. Placar vem de `derive()` e ranking de `rank(history)`, ambas puras. Nunca salve placar ou ranking.
+1. Estado mínimo: `events` (`place` · `round` · `draw`) + `cursor`. `view()` faz o replay até o cursor; placar vem de `derive(view(s))` e ranking de `rank(history)`, ambas puras. Nunca salve placar ou ranking.
 2. Sem dependência, sem build e sem dividir o arquivo sem registro em DECISIONS.
 3. Edge cases: vaga vazia, nome só com espaços, nome longo, desfazer depois de avanço, toque duplo, `pointercancel`, teclado do celular abrindo (`resize` com foco).
 4. Um teste por regra nova.

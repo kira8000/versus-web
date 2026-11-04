@@ -16,21 +16,23 @@ python -m http.server 5178   # http://localhost:5178
 | Bloco | O que faz |
 |-------|-----------|
 | `<style>` | Tema (variáveis em `:root`), layout em coluna de altura total, barra de rolagem visível, Home, janela sobreposta (`#win`), barra inferior |
-| `fresh()` / `derive()` | **Lógica pura.** Todo o placar sai de `names + overrides + taps` |
+| `fresh()` / `view()` / `derive()` | **Lógica pura.** A chave é uma linha do tempo (`events` + `cursor`); `view()` faz o replay para `names + overrides + taps` e `derive()` tira o placar disso |
+| `push()` / `undo()` / `redo()` / `target()` | **Lógica pura.** Ação nova (trunca o redo), mover o cursor e a vaga iluminada |
+| `migrate()` | **Lógica pura.** Save v1 → v2 |
 | `rank(history)` | **Lógica pura.** Ranking derivado do histórico (regra do `service-versus`: 3 / +1 / 5) |
-| auto-teste | 8 `console.assert` sobre `derive()` e `rank()` |
-| `load()` / `save()` | `localStorage["versus-web:v1"]`, sempre dentro de `try/catch` |
-| `bracket()` | Desenha uma chave (SVG + slots); `live` liga toques, inputs e sugestão. Usada no palco e no card do histórico |
-| `render()` | Barra inferior + Home + janela `win`; na janela CHAVE calcula `COL` (largura da tela) e `ROW` (altura útil / vagas) e chama `bracket(..., { live: true })` |
+| auto-teste | 17 `console.assert` sobre `derive()`, `rank()`, timeline e migração |
+| `load()` / `save()` | `localStorage["versus-web:v2"]` (sem v2, migra a v1 e mantém a v1 como backup), sempre dentro de `try/catch` |
+| `bracket()` | Desenha uma chave (SVG + slots); `live` liga toques, vaga iluminada, laterais do colchete e sugestão. Usada no palco e no card do histórico |
+| `render()` | Barra inferior + Home + janela `win`; na janela CHAVE calcula `COL` (largura da tela) e `ROW` (altura útil / vagas) e chama `bracket(..., { live: true })`; desenha o character select (`roster()`) quando há vaga iluminada |
 | `renderPage()` | HISTÓRICO (cards que expandem com a chave, `openHist`) e RANKING (tabela) em `#page` |
-| ações | Um `click` no `document` para `data-tab`, `data-act` (`grow`, `start`, `undo`, `edit`, `new`) e `data-view`; digitação (`input`/`change`); tocar e segurar (`pointer*`) |
+| ações | Um `click` no `document` para `data-tab`, `data-act` (`grow`, `undo`, `redo`, `new`), `data-view`, `data-pick` (vaga vazia) e `data-mc` (carta); `submit` do `Adicionar`; tocar e segurar (`pointer*`) |
 
 Detalhes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Invariantes (não quebre)
 
-- **Estado mínimo e derivado.** Não salve placar, vencedor ou campeão; derive. Desfazer é `taps.pop()`.
-- **Formato do save** `{ current: { id, createdAt, size, started, names[], overrides{}, taps[{match, winner|null}] }, history[{ ...current, champion }] }`. Mudar esse formato exige uma chave nova (`versus-web:v2`) e migração da v1. Senão o operador perde a chave no meio do evento.
+- **Estado mínimo e derivado.** Não salve placar, vencedor ou campeão; derive. Desfazer é `cursor--`, refazer é `cursor++`.
+- **Formato do save** `versus-web:v2`: `{ current: { id, createdAt, size, events[{t:'place',slot,name} | {t:'round',match,winner} | {t:'draw',match}], cursor }, history[{ ...current, champion }] }`. Mudar esse formato exige uma chave nova (`versus-web:v3`) e migração da v2. Senão o operador perde a chave no meio do evento. A chave `versus-web:v1` nunca é apagada (backup).
 - **IDs:** slot `c-i` (coluna, posição) e confronto `c-m` (slots `c-2m` e `c-2m+1`).
 - **Sem ordem obrigatória, sem bye automático, sem lógica de repescagem nem sorteio.** São decisões de produto: ver [docs/DECISIONS.md](docs/DECISIONS.md).
 - **Não re-renderizar com campo focado** (o teclado do celular redimensiona a tela).
