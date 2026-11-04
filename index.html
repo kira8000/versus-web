@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Versus Web</title>
+<style>
+  :root { --bg:#1e1e1e; --win:#5fbf5f; --lose:#d9534f; --open:#777; --glow:#ffd75e; --row:60px; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:#ddd; font:15px/1.2 ui-monospace,"Cascadia Mono",Consolas,monospace; }
+  header { display:flex; align-items:baseline; gap:12px; padding:12px 14px 0; }
+  h1 { margin:0; font-size:18px; letter-spacing:2px; color:var(--win); }
+  details { font-size:13px; color:#aaa; }
+  details ol { margin:6px 0; padding-left:20px; }
+  #scroll { overflow-x:auto; padding:8px 0 96px; }
+  #board { position:relative; margin:0 14px; }
+  #board svg { position:absolute; inset:0; overflow:visible; }
+  .slot, .area { position:absolute; height:44px; }
+  .slot { display:flex; align-items:flex-end; gap:6px; padding:0 2px 4px; background:none; border:0; color:var(--open);
+          font:inherit; font-weight:bold; text-align:left; white-space:nowrap; overflow:hidden; user-select:none;
+          -webkit-user-select:none; -webkit-touch-callout:none; touch-action:manipulation; }
+  button.slot:not(:disabled) { cursor:pointer; }
+  input.slot { align-items:center; background:#555; color:#eee; border-radius:2px; padding:0 8px; height:34px; margin-top:6px; font-weight:normal; }
+  input.slot::placeholder { color:#999; }
+  .slot.win { color:var(--win); } .slot.lose { color:var(--lose); } .slot.dim { opacity:.45; }
+  .dots { letter-spacing:1px; font-size:12px; }
+  .slot.suggested, .area.suggested { animation:pulse 1.1s ease-in-out infinite; }
+  .slot.suggested { color:var(--glow); text-shadow:0 0 8px var(--glow); }
+  @keyframes pulse { 50% { filter:brightness(1.6); } }
+  .holding::after { content:""; position:absolute; left:0; right:0; bottom:0; height:4px; background:var(--glow);
+                    transform-origin:left; animation:fill 1.2s linear forwards; }
+  @keyframes fill { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+  .flash { animation:flash .5s; } @keyframes flash { 0% { background:#fff4; } }
+  .champ { color:var(--glow); font-size:18px; text-shadow:0 0 10px var(--glow); }
+  nav { position:fixed; left:0; right:0; bottom:0; display:flex; gap:8px; padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+        background:#161616ee; border-top:1px solid #333; }
+  nav button { flex:1; min-height:48px; font:inherit; font-weight:bold; background:#2c2c2c; color:#eee; border:1px solid #444; border-radius:4px; }
+  nav button.primary { background:var(--win); color:#111; border-color:var(--win); }
+  nav button.on { border-color:var(--glow); color:var(--glow); }
+  nav button:disabled { opacity:.35; }
+</style>
+</head>
+<body>
+<header><h1>VERSUS</h1><details id="hist"></details></header>
+<div id="scroll"><div id="board"></div></div>
+<nav id="bar"></nav>
+<script>
+const KEY = 'versus-web:v1', ROW = 60, COL = 150, HOLD_MS = 1200;
+
+// ---------- lógica pura ----------
+function fresh(size = 4) {
+  return { id: String(Date.now()), createdAt: Date.now(), size, started: false, names: Array(size).fill(''), overrides: {}, taps: [] };
+}
+
+// Tudo (placar, avanço, confronto sugerido, campeão) sai de names + overrides + taps.
+function derive({ size, names, overrides, taps }) {
+  const L = Math.log2(size), cols = [names.map((n, i) => ({ id: `0-${i}`, name: (n || '').trim(), dots: 0, state: 'open' }))];
+  let suggested = null, champion = null;
+  const playable = new Set();
+  for (let c = 0; c < L; c++) {
+    const next = [];
+    for (let m = 0; m < cols[c].length / 2; m++) {
+      const a = cols[c][2 * m], b = cols[c][2 * m + 1], id = `${c}-${m}`;
+      const t = taps.filter(x => x.match === id);
+      a.dots = t.filter(x => x.winner === a.id).length;
+      b.dots = t.filter(x => x.winner === b.id).length;
+      const w = a.dots >= 2 ? a : b.dots >= 2 ? b : null;
+      if (w) { w.state = 'win'; (w === a ? b : a).state = 'lose'; }
+      a.match = b.match = id;
+      a.editable = b.editable = t.length === 0;
+      if (!w && a.name && b.name) { playable.add(id); suggested ??= id; }
+      if (w && c === L - 1) champion = w.name;
+      const nid = `${c + 1}-${m}`;
+      next.push({ id: nid, name: ((overrides[nid] || '').trim()) || (w ? w.name : ''), dots: 0, state: 'open' });
+    }
+    cols.push(next);
+  }
+  return { cols, suggested, champion, playable };
+}
+
+// ---------- auto-teste ----------
+(() => {
+  const N = ['A', 'B', 'C', 'D'], t = (m, w) => ({ match: m, winner: w });
+  const d = (taps, names = N, ov = {}) => derive({ size: 4, names, overrides: ov, taps });
+  const AA = [t('0-0', '0-0'), t('0-0', '0-0')];
+  console.assert(d(AA).cols[1][0].name === 'A', 'avança com 2 bolinhas');
+  console.assert(d([t('0-0', null), t('0-0', null)]).cols[1][0].name === '' && d([t('0-0', null)]).cols[0][0].dots === 0, 'empate não pontua');
+  console.assert(d([], ['A', '', 'C', 'D']).suggested === '0-1', 'slot vazio bloqueia confronto');
+  const out = d([t('0-1', '0-3'), t('0-1', '0-3')]);
+  console.assert(out.cols[1][1].name === 'D' && out.cols[1][0].name === '', 'fora de ordem');
+  console.assert(d(AA, N, { '1-0': 'Z' }).cols[1][0].name === 'Z', 'override ganha');
+  console.assert(d(AA.slice(0, -1)).cols[1][0].name === '', 'undo de avanço');
+  const full = [...AA, t('0-1', '0-2'), t('0-1', '0-2'), t('1-0', '1-1'), t('1-0', '1-1')];
+  console.assert(d(full).champion === 'C', 'campeão');
+})();
+
+// ---------- estado + storage ----------
+function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* modo privado: segue sem salvar */ } }
+const db = load() || { current: fresh(), history: [] };
+let editing = false, flashMatch = null;
+const cur = () => db.current;
+
+// ---------- render ----------
+const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const yOf = (c, i) => (i + 0.5) * 2 ** c * ROW;
+
+function render() {
+  const s = cur(), { cols, suggested, champion, playable } = derive(s), L = cols.length - 1;
+  const board = document.getElementById('board');
+  const W = L * COL + 160, H = s.size * ROW;
+  board.style.width = W + 'px'; board.style.height = H + 'px';
+  const color = st => st === 'win' ? 'var(--win)' : st === 'lose' ? 'var(--lose)' : 'var(--open)';
+  let svg = '', html = '';
+
+  cols.forEach((col, c) => col.forEach((sl, i) => {
+    const x = c * COL, y = yOf(c, i), last = c === L;
+    const lineEnd = last ? x + 140 : x + COL - 20;
+    svg += `<line x1="${x}" y1="${y}" x2="${lineEnd}" y2="${y}" stroke="${color(sl.state)}"/>`;
+    if (!last) {
+      const ym = yOf(c + 1, i >> 1);
+      svg += `<line x1="${lineEnd}" y1="${y}" x2="${lineEnd}" y2="${ym}" stroke="${color(sl.state)}"/>`;
+      if (i % 2 === 0) {
+        const decided = col[i].state !== 'open';
+        svg += `<line x1="${lineEnd}" y1="${ym}" x2="${x + COL}" y2="${ym}" stroke="${decided ? 'var(--win)' : 'var(--open)'}"/>`;
+        if (s.started && playable.has(sl.match)) // área do confronto: segurar = empate
+          html += `<div class="area${sl.match === suggested ? ' suggested' : ''}" data-match="${sl.match}" style="left:${lineEnd - 10}px;top:${y}px;width:30px;height:${yOf(c, i + 1) - y}px"></div>`;
+      }
+    }
+    const style = `left:${x}px;top:${y - 44}px;width:${(last ? 140 : COL - 24)}px`;
+    if (last) { html += `<div class="slot ${champion ? 'champ' : ''}" style="${style}">${esc(sl.name || (champion ?? ''))}${champion ? ' 👑' : ''}</div>`; return; }
+    const asInput = s.started ? (editing && sl.editable) : c === 0;
+    if (asInput) {
+      html += `<input class="slot" data-slot="${sl.id}" value="${esc(c === 0 ? s.names[i] : (s.overrides[sl.id] ?? sl.name))}" placeholder="${c === 0 ? 'MC ' + (i + 1) : 'repescagem'}" style="${style}">`;
+    } else {
+      const cls = [sl.state, sl.match === suggested && 'suggested', s.started && sl.state === 'open' && sl.match !== suggested && 'dim', sl.match === flashMatch && 'flash'].filter(Boolean).join(' ');
+      const can = s.started && playable.has(sl.match);
+      html += `<button class="slot ${cls}" data-slot="${sl.id}" data-match="${sl.match}" ${can ? '' : 'disabled'} style="${style}">${esc(sl.name || '—')} <span class="dots">${'●'.repeat(sl.dots)}</span></button>`;
+    }
+  }));
+  board.innerHTML = `<svg width="${W}" height="${H}" stroke-width="3">${svg}</svg>` + html;
+  flashMatch = null;
+
+  const filled = s.names.filter(n => n.trim()).length;
+  document.getElementById('bar').innerHTML = s.started
+    ? `<button data-act="undo" ${s.taps.length ? '' : 'disabled'}>↶ Desfazer</button>
+       <button data-act="edit" class="${editing ? 'on' : ''}">✎ Editar</button>
+       <button data-act="new">Nova chave</button>`
+    : `<button data-act="grow" ${s.size >= 16 ? 'disabled' : ''}>+ (${s.size}→${Math.min(s.size * 2, 16)})</button>
+       <button data-act="start" class="primary" ${filled >= 4 ? '' : 'disabled'}>Iniciar (${filled})</button>`;
+
+  const h = document.getElementById('hist');
+  h.innerHTML = `<summary>Histórico (${db.history.length})</summary><ol>${db.history.map(x =>
+    `<li>${new Date(x.createdAt).toLocaleDateString('pt-BR')} · ${x.size} MCs · 👑 ${esc(x.champion)}</li>`).join('')}</ol>`;
+  h.hidden = !db.history.length;
+}
+
+// ---------- ações ----------
+function commit() { save(); render(); }
+function tap(match, winner) { cur().taps.push({ match, winner }); if (winner === null) flashMatch = match; commit(); }
+
+document.getElementById('bar').addEventListener('click', e => {
+  const act = e.target.closest('button')?.dataset.act, s = cur();
+  if (act === 'grow') { s.names = s.names.concat(Array(s.size).fill('')); s.size *= 2; }
+  if (act === 'start') { s.started = true; editing = false; }
+  if (act === 'undo') s.taps.pop();
+  if (act === 'edit') editing = !editing;
+  if (act === 'new') {
+    if (!confirm('Encerrar esta chave e começar outra?')) return;
+    const champ = derive(s).champion;
+    if (champ) db.history.unshift({ createdAt: s.createdAt, champion: champ, size: s.size });
+    db.current = fresh(); editing = false;
+  }
+  commit();
+});
+
+const board = document.getElementById('board');
+board.addEventListener('input', e => {
+  const id = e.target.dataset.slot, [c, i] = id.split('-').map(Number), s = cur(), v = e.target.value;
+  if (c === 0) s.names[i] = v; else if (v.trim()) s.overrides[id] = v; else delete s.overrides[id];
+  save();
+});
+board.addEventListener('change', render); // ao sair do campo: atualiza chave/botões sem perder foco durante a digitação
+
+// Toque = round para o MC; segurar HOLD_MS (nome ou área do confronto) = empate.
+let hold = null;
+board.addEventListener('pointerdown', e => {
+  const el = e.target.closest('button.slot:not(:disabled), .area');
+  if (!el) return;
+  const match = el.dataset.match, parts = board.querySelectorAll(`[data-match="${match}"]`);
+  parts.forEach(p => p.classList.add('holding'));
+  hold = { el, match, parts, timer: setTimeout(() => { hold = null; tap(match, null); }, HOLD_MS) };
+});
+function endHold(e, fire) {
+  if (!hold) return;
+  clearTimeout(hold.timer);
+  hold.parts.forEach(p => p.classList.remove('holding'));
+  const h = hold; hold = null;
+  if (fire && h.el.matches('button.slot') && h.el.contains(e.target)) tap(h.match, h.el.dataset.slot);
+}
+board.addEventListener('pointerup', e => endHold(e, true));
+board.addEventListener('pointercancel', e => endHold(e, false));
+board.addEventListener('pointerleave', e => endHold(e, false));
+board.addEventListener('contextmenu', e => e.preventDefault());
+
+render();
+</script>
+</body>
+</html>
