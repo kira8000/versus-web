@@ -19,6 +19,9 @@ Cada decisão traz o motivo. Mudar uma delas exige registrar aqui.
   - **A grade só aparece quando há vaga iluminada.** Com a chave cheia, a batalha ganha a janela inteira; tocar numa vaga vazia traz a grade de volta, e tocar de novo nela solta o destaque.
   - **Sem `Iniciar` e sem `Editar`.** Confronto com 2 nomes já é jogável. Trocar um MC = desfazer o `place`. Custo aceito: um nome errado lá atrás obriga a desfazer o que veio depois.
   - **Round também pela lateral do colchete** (duas faixas de 56px, uma por MC). Alvos de toque ≥ 48px.
+- **Sem MC duplicado na chave (v8, pedido do dono).** A carta de quem está **vivo** na chave fica cinza e não aceita toque, e o `Adicionar` recusa o mesmo nome (o nome fica no campo). Quem só aparece perdendo volta a ficar tocável: a repescagem continua (escolha do dono). Substitui o "esmaecido, mas tocável" do v7.
+- **Lixeira na vaga (v8, opção B do pedido).** Uma lixeira vermelha ao lado do nome tira aquele MC da vaga, sem tirar a carta da grade. A vaga fica iluminada para receber outro MC. Só aparece em vaga preenchida por `place` (vencedor derivado não tem) e enquanto o confronto não teve round: depois do 1º round, trocar o MC mudaria um placar já jogado. Na carta da grade não funcionaria, porque a grade some com a chave cheia.
+- **Zoom por pinça só na chave (v8, pedido do dono).** A pinça (ou ctrl + roda/trackpad) amplia a chave no palco e no card do histórico, entre 0,4x e 2,5x, com o ponto entre os dedos parado. O zoom da página fica bloqueado (viewport `user-scalable=no`, `touch-action: pan-x pan-y`, `gesturestart` no iOS). Custo de acessibilidade aceito: as fontes já são grandes, os alvos têm ≥ 48px, a própria chave amplia e o zoom do teclado (Ctrl +/−) continua. O zoom é estado de tela: não é salvo e volta a 1x ao encerrar.
 - **Linha do tempo com undo/redo (v7).** Toda ação é um evento (`place`, `round`, `draw`) numa pilha ordenada com cursor. Undo e redo ficam num botão flutuante no canto da chave, sempre visíveis; ação nova depois de undo descarta o redo, como num editor. Com isso, `DESFAZER` saiu da barra inferior, que voltou a ser só navegação (HISTÓRICO · CHAVE · RANKING). `+ vagas` fica fora da timeline e só aparece antes do 1º round.
 - **Ranking com a regra do `service-versus`** (3 / +1 / 5), calculado a partir do histórico local. Nada é salvo à parte, então editar ou apagar o histórico nunca deixa o ranking dessincronizado.
 
@@ -26,6 +29,8 @@ Cada decisão traz o motivo. Mudar uma delas exige registrar aqui.
 - **Um `index.html`, vanilla, sem build.** Custo mínimo de manutenção e de tokens, e deploy estático trivial.
 - **Estado derivado** (`events + cursor`; `view()` faz o replay para `names + overrides + taps` e `derive()` continua o mesmo). Evita estado inconsistente; desfazer e refazer só movem o cursor.
 - **Save `versus-web:v2` com migração automática da v1.** A v1 nunca é apagada nem sobrescrita: fica como backup no aparelho.
+- **Lixeira = `place` com `name: ''` (v8).** É um evento que já existe, então o formato do save não muda (sem v3) e undo/redo funcionam de graça. Numa vaga das fases seguintes, o nome vazio faz `derive()` voltar ao vencedor derivado.
+- **CSS `zoom` em vez de `transform: scale`.** O `zoom` muda o layout, então a área de rolagem e os toques acompanham a escala. O snap de coluna fica desligado enquanto a chave está ampliada ou reduzida.
 - **`localStorage` com `try/catch`.** No modo privado, o app funciona sem salvar.
 - **Mesmo padrão do Aura Farmer** (save local, agente Cerberus). Do Cerberus, só o processo foi importado; o `ui-ux-pro-max` (3,6 MB) ficou de fora.
 
@@ -43,3 +48,4 @@ Cada decisão traz o motivo. Mudar uma delas exige registrar aqui.
 - v5: Home inicial; chave, histórico e ranking em janelas sobrepostas; barra inferior com toggle, `Desfazer` e `Editar`.
 - v6: card do histórico expande no lugar com a chave (padrão do Mobile Versus); `bracket()` reusado no palco e no histórico.
 - v7: character select, linha do tempo com undo/redo, save v2 com migração da v1.
+- v8: zoom por pinça na chave (palco e histórico), carta travada para MC vivo, lixeira na vaga.

@@ -2,11 +2,13 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Versus Web</title>
 <style>
   :root { --bg:#1e1e1e; --win:#5fbf5f; --lose:#d9534f; --open:#777; --glow:#ffd75e; --row:60px; }
   * { box-sizing:border-box; }
+  /* sem zoom de página por pinça: a pinça só amplia a chave (#scroll e .mini) */
+  html { touch-action:pan-x pan-y; }
   body { margin:0; height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden;
          background:var(--bg); color:#ddd; font:18px/1.2 ui-monospace,"Cascadia Mono",Consolas,monospace; }
   /* palco: a Home fica no fundo; as janelas (chave, histórico, ranking) sobrepõem com respiro */
@@ -75,9 +77,14 @@
         font-size:15px; font-weight:bold; color:#eee; background:#2c2c2c; border:1px solid #484848; border-radius:10px; text-align:left; cursor:pointer; }
   .mc span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mc small { color:var(--glow); font-size:11px; font-weight:normal; }
-  .mc.used { opacity:.4; }
+  .mc.used { opacity:.4; cursor:default; }
+  /* lixeira: tira o MC da vaga (não apaga o MC da grade) */
+  .del { position:absolute; width:48px; height:48px; display:flex; align-items:center; justify-content:center; padding:0;
+         background:none; border:0; border-radius:10px; cursor:pointer; touch-action:manipulation; }
+  .del:active { background:#d9534f33; }
   .mc:active { border-color:var(--glow); }
   #scroll { flex:1; min-width:0; overflow:auto; scroll-snap-type:x mandatory; scrollbar-color:#888 #2a2a2a; }
+  #scroll.zoomed { scroll-snap-type:none; } /* ampliada, uma coluna passa da tela: o snap prenderia a rolagem */
   #scroll::-webkit-scrollbar { height:12px; width:6px; }
   #scroll::-webkit-scrollbar-track { background:#2a2a2a; }
   #scroll::-webkit-scrollbar-thumb { background:#888; border-radius:6px; }
@@ -170,6 +177,12 @@ function target(s, pick = null) {
   const i = cols[0].findIndex(x => !x.name);
   return i < 0 ? null : `0-${i}`;
 }
+// MCs vivos na chave (carta travada). Quem só aparece perdendo fica livre para a repescagem.
+// Tirar um MC da vaga = place com name '' (mesmo formato do save).
+function usedNames(s) {
+  return new Set(derive(view(s)).cols.flat().filter(x => x.name && x.state !== 'lose').map(x => x.name.toLowerCase()));
+}
+const ZMIN = 0.4, ZMAX = 2.5, clampZoom = z => Math.min(ZMAX, Math.max(ZMIN, z));
 
 // v1 → v2: names viram place na 1ª fase, taps viram round/draw, overrides viram place nas fases seguintes.
 function toV2(x) {
@@ -265,6 +278,24 @@ function rank(history) {
   undo(s); push(s, { t: 'draw', match: '0-0' });
   console.assert(s.events.length === 6 && s.cursor === 6 && s.events[5].t === 'draw' && derive(view(s)).cols[0][0].dots === 1, 'ação nova limpa o redo');
 
+  // lixeira (place com name '') e carta travada só com MC vivo
+  const u = fresh(4), U = (slot, name) => push(u, { t: 'place', slot, name }), R2 = (m, w) => push(u, { t: 'round', match: m, winner: w });
+  U('0-0', 'A'); U('0-1', 'B');
+  console.assert(usedNames(u).has('a') && usedNames(u).has('b') && !usedNames(u).has('c'), 'MC na chave fica travado');
+  U('0-0', '');
+  console.assert(view(u).names[0] === '' && target(u) === '0-0' && !usedNames(u).has('a'), 'lixeira esvazia a vaga e solta o MC');
+  undo(u);
+  console.assert(view(u).names[0] === 'A' && usedNames(u).has('a'), 'undo da lixeira traz o MC');
+  U('0-2', 'C'); U('0-3', 'D'); R2('0-0', '0-0'); R2('0-0', '0-0');
+  console.assert(usedNames(u).has('a') && !usedNames(u).has('b'), 'eliminado volta para a repescagem');
+  U('1-1', 'B');
+  console.assert(usedNames(u).has('b') && derive(view(u)).cols[1][1].name === 'B', 'repescado fica travado');
+  R2('0-1', '0-2'); R2('0-1', '0-2'); // C vence, mas a vaga 1-1 segue com o repescado
+  console.assert(derive(view(u)).cols[1][1].name === 'B', 'override segue valendo');
+  U('1-1', '');
+  console.assert(derive(view(u)).cols[1][1].name === 'C', 'lixeira no override volta ao vencedor derivado');
+  console.assert(clampZoom(10) === ZMAX && clampZoom(0) === ZMIN && clampZoom(1) === 1, 'limites do zoom');
+
   // migração v1 → v2: mesmo placar, campeão e ranking
   const sig = x => { const r = derive(view(x)); return JSON.stringify([r.cols.map(c => c.map(y => [y.name, y.dots, y.state])), r.champion]); };
   const v1 = { current: { id: '1', createdAt: 1, size: 4, started: true, names: N, overrides: { '1-1': 'Z' }, taps: [t('0-0', '0-0'), t('0-0', null), t('0-0', '0-0')] },
@@ -285,18 +316,20 @@ const cur = () => db.current;
 // Estado de tela, nunca salvo:
 // win = janela aberta sobre a Home (null | 'battle' | 'hist' | 'rank'); recarregar no meio da batalha volta direto para a chave.
 // pick = vaga vazia escolhida com toque; fx = animação da última ação; openHist = cards do histórico expandidos.
-let win = cur().events.length ? 'battle' : null, pick = null, fx = {};
+// zoom = escala da chave por pinça (palco e cards do histórico).
+let win = cur().events.length ? 'battle' : null, pick = null, fx = {}, zoom = { board: 1, hist: 1 };
 const openHist = new Set();
 
 // ---------- render ----------
 const esc = s => s.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const key = n => n.trim().toLowerCase();
+const TRASH = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--lose)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
 
 const fmtDate = ms => new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
 // Desenha a chave de `s`. live = palco (toques, vaga iluminada, laterais do colchete); senão só leitura (histórico).
 function bracket(s, { col, row, slotH = 44, pad = PAD, live = false, tgt = null }) {
-  const d = derive(view(s)), { cols, champion, playable } = d, L = cols.length - 1, suggested = live && !tgt ? d.suggested : null;
+  const v = view(s), d = derive(v), { cols, champion, playable } = d, L = cols.length - 1, suggested = live && !tgt ? d.suggested : null;
   const yOf = (c, i) => pad + (i + 0.5) * 2 ** c * row;
   const W = (L + 1) * col, H = s.size * row + pad;
   const color = st => st === 'win' ? 'var(--win)' : st === 'lose' ? 'var(--lose)' : 'var(--open)';
@@ -322,7 +355,10 @@ function bracket(s, { col, row, slotH = 44, pad = PAD, live = false, tgt = null 
         }
       }
     }
-    const style = `left:${x}px;top:${y - slotH}px;width:${lineEnd - x - 8}px;height:${slotH}px`;
+    // lixeira: só em vaga preenchida por place (não vencedor derivado) e confronto sem round
+    const del = live && !last && sl.name && sl.editable && (c === 0 || (v.overrides[sl.id] || '').trim());
+    const style = `left:${x}px;top:${y - slotH}px;width:${lineEnd - x - 8 - (del ? 48 : 0)}px;height:${slotH}px`;
+    if (del) html += `<button class="del" data-del="${sl.id}" aria-label="Tirar ${esc(sl.name)} da chave" title="Tirar da chave" style="left:${lineEnd - 56}px;top:${y - 48}px">${TRASH}</button>`;
     const fxc = land.has(sl.id) ? ' land' : '';
     if (last) { html += `<div class="slot${champion ? ' champ' : ''}${fxc}" style="${style}"><span class="nm">${esc(sl.name)}</span>${champion ? ' 👑' : ''}</div>`; return; }
     if (live && !sl.name) { // vaga vazia: tocar move o destaque para ela
@@ -337,12 +373,12 @@ function bracket(s, { col, row, slotH = 44, pad = PAD, live = false, tgt = null 
   return `<div class="bk" style="width:${W}px;height:${H}px"><svg width="${W}" height="${H}" stroke-width="3">${svg}</svg>${areas}${html}</div>`;
 }
 
-// Cartas do character select: ranking (ordem de pontos), depois quem já apareceu no histórico ou na chave atual.
+// Cartas do character select: ranking (ordem de pontos), depois todo MC já posto numa vaga (histórico e chave atual).
+// Lê os eventos place, não as vagas: quem saiu pela lixeira (ou pelo undo) continua com a carta.
 function roster() {
   const seen = new Map(), add = (n, pts) => { if (n && n.trim() && !seen.has(key(n))) seen.set(key(n), { name: n.trim(), pts }); };
   rank(db.history).forEach(r => add(r.name, r.points));
-  [...db.history.filter(h => h.events || h.names), cur()].map(view)
-    .forEach(v => [...v.names, ...Object.values(v.overrides)].forEach(n => add(n, 0)));
+  [...db.history, cur()].forEach(h => (h.events || []).forEach(e => { if (e.t === 'place') add(e.name, 0); }));
   return [...seen.values()];
 }
 
@@ -378,8 +414,8 @@ function render() {
   const tgt = target(c0, pick);
   sel.hidden = !tgt;
   if (tgt) {
-    const used = new Set([...v0.names, ...Object.values(v0.overrides)].filter(n => n.trim()).map(key)), list = roster();
-    document.getElementById('grid').innerHTML = list.length ? list.map(r => `<button class="mc${used.has(key(r.name)) ? ' used' : ''}" data-mc="${esc(r.name)}">
+    const used = usedNames(c0), list = roster();
+    document.getElementById('grid').innerHTML = list.length ? list.map(r => `<button class="mc${used.has(key(r.name)) ? ' used" disabled' : '"'} data-mc="${esc(r.name)}">
         <span>${esc(r.name)}</span>${r.pts ? `<small>${r.pts} pts</small>` : ''}</button>`).join('')
       : '<p class="empty">Adicione os MCs da batalha.</p>';
   }
@@ -387,15 +423,17 @@ function render() {
   const sc = document.getElementById('scroll');
   COL = sc.clientWidth;
   ROW = Math.max(MIN_ROW, Math.floor((sc.clientHeight - LIVE_PAD - 20) / c0.size));
-  document.getElementById('board').innerHTML = bracket(c0, { col: COL, row: ROW, slotH: 48, pad: LIVE_PAD, live: true, tgt });
+  const bd = document.getElementById('board');
+  bd.innerHTML = bracket(c0, { col: COL, row: ROW, slotH: 48, pad: LIVE_PAD, live: true, tgt });
+  bd.style.zoom = zoom.board; sc.classList.toggle('zoomed', zoom.board !== 1);
   fx = {};
-  // a vaga iluminada sempre à vista (a metade de cima é baixa durante a montagem)
+  // a vaga iluminada sempre à vista (a metade de cima é baixa durante a montagem); medida na tela, já com o zoom
   const te = document.querySelector('#board .target');
   if (te) {
-    const top = te.offsetTop, bot = top + te.offsetHeight;
-    if (top - 64 < sc.scrollTop) sc.scrollTop = top - 64; // 64 = respiro do undo/redo flutuante
-    else if (bot + 12 > sc.scrollTop + sc.clientHeight) sc.scrollTop = bot + 12 - sc.clientHeight;
-    if (te.offsetLeft < sc.scrollLeft || te.offsetLeft >= sc.scrollLeft + COL) sc.scrollLeft = Math.floor(te.offsetLeft / COL) * COL;
+    const r = te.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+    if (r.top - 64 < sr.top) sc.scrollTop += r.top - 64 - sr.top; // 64 = respiro do undo/redo flutuante
+    else if (r.bottom + 12 > sr.bottom) sc.scrollTop += r.bottom + 12 - sr.bottom;
+    if (r.left < sr.left || r.left >= sr.right) sc.scrollLeft += r.left - sr.left - 16 * zoom.board; // início da coluna
   }
 }
 
@@ -410,7 +448,7 @@ function renderPage() {
           <small>${fmtDate(x.createdAt)} · ${x.size} MCs</small>
           <b>${x.champion ? '👑 ' + esc(x.champion) : 'sem campeão'}</b>${full ? `<i>${open ? '▴' : '▾'}</i>` : ''}
         </${full ? 'button' : 'div'}>
-        ${open ? `<div class="mini">${bracket(x, { col: 170, row: 40, slotH: 30 })}</div>` : ''}</div>`;
+        ${open ? `<div class="mini"><div style="zoom:${zoom.hist}">${bracket(x, { col: 170, row: 40, slotH: 30 })}</div></div>` : ''}</div>`;
     }).join('') : '<p class="empty">Nenhuma batalha encerrada ainda.</p>';
     return;
   }
@@ -431,14 +469,21 @@ function fxOf(ev, s, forward = true) {
   return { bump: ev.winner, land: won ? [`${c + 1}-${m}`] : [] };
 }
 function act(ev) { const s = cur(); push(s, ev); fx = fxOf(ev, s); if (ev.t === 'place') pick = null; commit(); }
-function place(name) { const slot = target(cur(), pick); if (slot && name.trim()) act({ t: 'place', slot, name: name.trim() }); }
+// Sem duplicar: MC vivo na chave é recusado (carta travada, Adicionar também). Devolve true se pôs.
+function place(name) {
+  const slot = target(cur(), pick);
+  if (!slot || !name.trim() || usedNames(cur()).has(key(name))) return false;
+  act({ t: 'place', slot, name: name.trim() }); return true;
+}
 function tap(match, winner) { act(winner ? { t: 'round', match, winner } : { t: 'draw', match }); }
 
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-act], [data-tab], [data-view], [data-close], [data-pick], [data-mc]');
+  const b = e.target.closest('[data-act], [data-tab], [data-view], [data-close], [data-pick], [data-mc], [data-del]');
   if (!b) return;
-  const { act: a, tab: t, view: v, pick: p, mc } = b.dataset, s = cur();
+  const { act: a, tab: t, view: v, pick: p, mc, del } = b.dataset, s = cur();
   if (p) { pick = pick === p ? null : p; render(); return; } // tocar de novo na vaga escolhida solta o destaque
+  // lixeira: esvazia a vaga (evento desfazível) e deixa ela iluminada para receber outro MC
+  if (del) { const ev = { t: 'place', slot: del, name: '' }; push(s, ev); fx = fxOf(ev, s); pick = del; commit(); return; }
   if (mc !== undefined) { place(mc); return; }
   // mesmo botão de novo = fecha a janela e volta para a Home
   if (t) { win = win === t && !b.matches('.cta') ? null : t; pick = null; }
@@ -452,7 +497,7 @@ document.addEventListener('click', e => {
     const vs = view(s), champ = derive(vs).champion, events = s.events.slice(0, s.cursor);
     // guarda a chave inteira (eventos até o cursor) para poder rever o resultado depois
     if (champ || vs.taps.length) { db.history.unshift({ ...s, events, cursor: events.length, champion: champ }); openHist.clear(); } // índices mudam
-    db.current = fresh(); pick = null;
+    db.current = fresh(); pick = null; zoom.board = 1;
   }
   commit();
 });
@@ -460,7 +505,7 @@ document.addEventListener('click', e => {
 document.getElementById('add').addEventListener('submit', e => {
   e.preventDefault();
   const input = document.getElementById('addName');
-  place(input.value); input.value = '';
+  if (place(input.value)) input.value = ''; // recusado (já na chave): o nome fica no campo
 });
 document.getElementById('addName').addEventListener('blur', () => setTimeout(render, 0)); // teclado fechou: remede a tela
 
@@ -469,7 +514,7 @@ const board = document.getElementById('board');
 let hold = null;
 board.addEventListener('pointerdown', e => {
   const el = e.target.closest('button.slot[data-match]:not(:disabled), .area');
-  if (!el) return;
+  if (!el || hold || !e.isPrimary) return; // 2º dedo (pinça) não começa outro segurar
   const match = el.dataset.match, parts = board.querySelectorAll(`[data-match="${match}"]`);
   parts.forEach(p => p.classList.add('holding'));
   hold = { el, match, parts, timer: setTimeout(() => { hold = null; tap(match, null); }, HOLD_MS) };
@@ -485,6 +530,45 @@ board.addEventListener('pointerup', e => endHold(e, true));
 board.addEventListener('pointercancel', e => endHold(e, false));
 board.addEventListener('pointerleave', e => endHold(e, false));
 board.addEventListener('contextmenu', e => e.preventDefault());
+
+// Pinça (2 dedos) ou ctrl+roda (pinça do trackpad) amplia só a chave, com o ponto entre os dedos parado.
+// 1 dedo segue rolando nativo. O zoom da página fica bloqueado (viewport + touch-action + gesturestart).
+const zoomBox = el => el instanceof Element ? el.closest('#scroll, .mini') : null;
+function setZoom(box, z, cx, cy) {
+  const k = box.id === 'scroll' ? 'board' : 'hist', z0 = zoom[k];
+  z = clampZoom(z);
+  if (z === z0) return;
+  const r = box.getBoundingClientRect(), mx = cx - r.left, my = cy - r.top;
+  zoom[k] = z;
+  if (k === 'board') { box.firstElementChild.style.zoom = z; box.classList.toggle('zoomed', z !== 1); }
+  else document.querySelectorAll('.mini > div').forEach(el => el.style.zoom = z);
+  box.scrollLeft = (box.scrollLeft + mx) * z / z0 - mx;
+  box.scrollTop = (box.scrollTop + my) * z / z0 - my;
+}
+let pinch = null;
+const gap = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+document.addEventListener('touchstart', e => {
+  const box = e.touches.length === 2 && zoomBox(e.target);
+  if (!box) return;
+  endHold(e, false); // pinça nunca vira round nem empate
+  pinch = { box, d0: gap(e.touches), z0: zoom[box.id === 'scroll' ? 'board' : 'hist'] };
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if (!pinch || e.touches.length !== 2) return;
+  e.preventDefault();
+  const [a, b] = e.touches;
+  setZoom(pinch.box, pinch.z0 * gap(e.touches) / pinch.d0, (a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+}, { passive: false });
+const endPinch = e => { if (e.touches.length < 2) pinch = null; };
+document.addEventListener('touchend', endPinch);
+document.addEventListener('touchcancel', endPinch);
+addEventListener('wheel', e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  const box = zoomBox(e.target);
+  if (box) setZoom(box, zoom[box.id === 'scroll' ? 'board' : 'hist'] * Math.exp(-e.deltaY / 200), e.clientX, e.clientY);
+}, { passive: false });
+addEventListener('gesturestart', e => e.preventDefault()); // iOS Safari ignora user-scalable=no
 
 // Não re-renderiza com campo focado: abrir o teclado no celular redimensiona a tela.
 addEventListener('resize', () => { if (!document.activeElement?.matches('input')) render(); });

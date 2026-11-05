@@ -32,6 +32,8 @@ O app abre na Home: **VERSUS** + **Batalhar**. A chave, o histórico e o ranking
 | Dar um round | Toque no nome de quem venceu **ou** na lateral do colchete do lado dele (aparece ●) |
 | Vencer o confronto | Com 2 bolinhas, o MC sobe sozinho para a próxima fase |
 | Empate | **Segure** 1,2 s no nome ou na área do confronto (uma barra enche) |
+| MC errado numa vaga | Toque na **lixeira vermelha** ao lado do nome (só antes do 1º round daquele confronto): a vaga esvazia e fica iluminada, e o MC volta a ficar disponível na grade. MC que já está vivo na chave fica cinza e não entra de novo |
+| Ampliar a chave | **Pinça** com 2 dedos sobre a chave (ou no card do Histórico); só a chave muda de tamanho. No computador, Ctrl + roda/trackpad |
 | Errou | **↶** desfaz a última ação (MC posto, round, empate), uma por vez, até o início. **↷** refaz. Uma ação nova depois de desfazer apaga o que dava para refazer |
 | Repescagem / MC atrasado | Toque na vaga vazia onde ele entra e escolha o MC na grade (MC já eliminado também pode) |
 | Ver outras fases | Arraste para o lado (cada fase ocupa uma tela) |

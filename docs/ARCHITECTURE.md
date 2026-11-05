@@ -14,7 +14,7 @@ ação do operador → push(evento) | undo | redo → save() → render() → de
     id, createdAt,
     size: 4 | 8 | 16,           // vagas na 1ª fase
     events: [                   // linha do tempo, em ordem
-      { t: "place", slot: "0-3", name: "Alma" },     // MC posto numa vaga (1ª fase ou repescagem)
+      { t: "place", slot: "0-3", name: "Alma" },     // MC posto numa vaga (1ª fase ou repescagem); name "" = lixeira (esvazia a vaga)
       { t: "round", match: "0-0", winner: "0-1" },   // bolinha
       { t: "draw",  match: "0-0" }                   // empate
     ],
@@ -69,7 +69,9 @@ Desfazer é `cursor--`: como tudo é derivado, isso também desfaz um avanço ou
 - Vaga vazia (no palco) vira `<button data-pick>`; a iluminada ganha `.target` (brilho + pulso). Vaga com nome vira `<button>` com o nome e as bolinhas.
 - `.area` = duas faixas invisíveis de 56px nas laterais do colchete jogável: a de cima é do MC de cima, a de baixo do MC de baixo. Toque = round; segurar = empate.
 - `fx` (estado de tela) anima a última ação: `.land` (MC pousa / vencedor sobe), `.bump` (bolinha nova), `.flash` (empate). `prefers-reduced-motion` desliga.
-- Character select (`#select`): só aparece com vaga iluminada. `roster()` = MCs do ranking em ordem de pontos + quem já apareceu no histórico ou na chave atual; quem está na chave atual fica `.used` (esmaecido, mas tocável).
+- Character select (`#select`): só aparece com vaga iluminada. `roster()` = MCs do ranking em ordem de pontos + todo nome de evento `place` do histórico e da chave atual (quem saiu pela lixeira continua com a carta). Quem está em `usedNames(s)` (vivo na chave: tem nome e `state !== 'lose'`) fica `.used` + `disabled`; quem só aparece perdendo fica livre para a repescagem. `place()` recusa nome em `usedNames` (cobre o `Adicionar`).
+- Lixeira (`.del`, `data-del`): botão 48×48 ao lado do nome, fora do `button.slot`. Só em vaga preenchida por `place` (1ª fase com nome, ou override não vazio) e com `editable` (confronto sem round). O clique faz `push` de `{ t:'place', slot, name:'' }` e põe `pick = slot`.
+- Zoom (`zoom = { board, hist }`, estado de tela): CSS `zoom` no `#board` e no wrapper de cada `.mini`, limitado por `clampZoom()` a 0,4x–2,5x. `touchstart`/`touchmove` com 2 dedos dentro de `#scroll` ou `.mini` (não passivos, com `preventDefault`) e `wheel` com `ctrlKey` chamam `setZoom()`, que mantém o ponto entre os dedos parado ajustando `scrollLeft/Top`. A pinça cancela o segurar em curso, e o `pointerdown` ignora o 2º dedo (`isPrimary`). `#scroll.zoomed` desliga o snap. O auto-scroll da vaga iluminada mede com `getBoundingClientRect`, que já inclui o zoom. O zoom da página fica bloqueado por viewport, `html { touch-action: pan-x pan-y }` e `gesturestart`.
 - Na carga, `render()` roda 2 vezes: o 2º passe mede a altura com `#tools` já preenchido.
 
 ## Eventos
@@ -78,7 +80,9 @@ Desfazer é `cursor--`: como tudo é derivado, isso também desfaz um avanço ou
 |--------|--------|
 | `click` em `data-act` | `grow` (dobra `size`, só antes do 1º round) e `new` = Encerrar (arquiva os eventos até o cursor e cria `fresh()`) em `#tools`; `undo`/`redo` no botão flutuante |
 | clique em `data-pick` (vaga vazia) | `pick = slot` (tocar de novo solta) |
-| clique em `data-mc` (carta) | `place` na vaga iluminada |
+| clique em `data-mc` (carta) | `place` na vaga iluminada (carta de MC vivo na chave fica `disabled`) |
+| clique em `data-del` (lixeira) | `place` com `name: ''` na vaga e `pick = slot` |
+| `touch*` com 2 dedos / `wheel` + `ctrlKey` na chave | zoom só da chave (`setZoom`) |
 | `submit` do `Adicionar` | `place` do nome digitado na vaga iluminada |
 | `pointerdown` | inicia o timer de 1200 ms e a classe `.holding` (barra enchendo) no confronto |
 | `pointerup` antes do tempo | round para aquele slot (nome ou lateral do colchete) |
@@ -98,4 +102,4 @@ Mesma regra do `service-versus` (`organization-ranking.service.ts`): vitória de
 
 ## Auto-teste
 
-São 17 `console.assert` logo após `rank()`. Os 8 originais (avanço com 2 bolinhas, empate não pontua, vaga vazia bloqueia o confronto, jogo fora de ordem, override ganha, desfazer avanço, campeão e ranking) e 9 da v2: `place` no slot iluminado, `pick` move o destaque, montagem fora de ordem, round pela timeline, undo de round, undo de place, redo, ação nova limpa o redo e migração v1 → v2 (placar, campeão e ranking idênticos).
+São 25 `console.assert` logo após `rank()`. Os 8 da v8 cobrem a lixeira e a carta travada (MC na chave travado, lixeira esvazia a vaga e solta o MC, undo da lixeira, eliminado volta para a repescagem, repescado fica travado, override segue valendo, lixeira no override volta ao vencedor derivado) e os limites do zoom. Os 17 anteriores: Os 8 originais (avanço com 2 bolinhas, empate não pontua, vaga vazia bloqueia o confronto, jogo fora de ordem, override ganha, desfazer avanço, campeão e ranking) e 9 da v2: `place` no slot iluminado, `pick` move o destaque, montagem fora de ordem, round pela timeline, undo de round, undo de place, redo, ação nova limpa o redo e migração v1 → v2 (placar, campeão e ranking idênticos).
