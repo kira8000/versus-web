@@ -17,15 +17,15 @@ python -m http.server 5178   # http://localhost:5178
 |-------|-----------|
 | `<style>` | Tema (variáveis em `:root`), layout em coluna de altura total, barra de rolagem visível, Home, janela sobreposta (`#win`), barra inferior |
 | `fresh()` / `view()` / `derive()` | **Lógica pura.** A chave é uma linha do tempo (`events` + `cursor`); `view()` faz o replay para `names + overrides + taps` e `derive()` tira o placar disso |
-| `push()` / `undo()` / `redo()` / `target()` / `usedNames()` | **Lógica pura.** Ação nova (trunca o redo), mover o cursor, a vaga iluminada e os MCs vivos na chave (carta travada) |
+| `push()` / `undo()` / `redo()` / `target()` / `usedNames()` / `cut()` / `resize()` | **Lógica pura.** Ação nova (trunca o redo), mover o cursor, a vaga iluminada os MCs vivos na chave (carta travada) e mudar o número de vagas |
 | `migrate()` | **Lógica pura.** Save v1 → v2 |
 | `rank(history)` | **Lógica pura.** Ranking derivado do histórico (regra do `service-versus`: 3 / +1 / 5) |
-| auto-teste | 25 `console.assert` sobre `derive()`, `rank()`, timeline, migração, lixeira, carta travada e limites do zoom |
+| auto-teste | 28 `console.assert` sobre `derive()`, `rank()`, timeline, migração, lixeira, carta travada, limites do zoom e vagas |
 | `load()` / `save()` | `localStorage["versus-web:v2"]` (sem v2, migra a v1 e mantém a v1 como backup), sempre dentro de `try/catch` |
 | `bracket()` | Desenha uma chave (SVG + slots); `live` liga toques, vaga iluminada, laterais do colchete e sugestão. Usada no palco e no card do histórico |
 | `render()` | Barra inferior + Home + janela `win`; na janela CHAVE calcula `COL` (largura da tela) e `ROW` (altura útil / vagas) e chama `bracket(..., { live: true })`; desenha o character select (`roster()`) quando há vaga iluminada |
 | `renderPage()` | HISTÓRICO (cards que expandem com a chave, `openHist`) e RANKING (tabela) em `#page` |
-| ações | Um `click` no `document` para `data-tab`, `data-act` (`grow`, `undo`, `redo`, `new`), `data-view`, `data-pick` (vaga vazia), `data-mc` (carta) e `data-del` (lixeira); `submit` do `Adicionar`; tocar e segurar (`pointer*`); pinça (`touch*` com 2 dedos, `ctrl+wheel`) amplia só a chave (`setZoom`, `clampZoom`) |
+| ações | Um `click` no `document` para `data-tab`, `data-act` (`sizes`, `end` abrem a folha `#sheet`; `undo`, `redo`), `data-view`, `data-pick` (vaga vazia), `data-mc` (carta) e `data-del` (lixeira); `submit` do `Adicionar`; tocar e segurar (`pointer*`); pinça (`touch*` com 2 dedos, `ctrl+wheel`) amplia só a chave (`setZoom`, `clampZoom`) |
 
 Detalhes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

@@ -78,7 +78,9 @@ Desfazer é `cursor--`: como tudo é derivado, isso também desfaz um avanço ou
 
 | Evento | Efeito |
 |--------|--------|
-| `click` em `data-act` | `grow` (dobra `size`, só antes do 1º round) e `new` = Encerrar (arquiva os eventos até o cursor e cria `fresh()`) em `#tools`; `undo`/`redo` no botão flutuante |
+| `click` em `data-act` | Na barra: `sizes` abre a folha VAGAS e `end` abre a folha ENCERRAR (`<dialog id="sheet">`); `undo`/`redo` no botão flutuante |
+| clique em `data-size` (folha VAGAS) | `resize(s, n)`, só antes do 1º round |
+| clique em `data-end` (folha ENCERRAR) | `finish(true)` arquiva os eventos até o cursor (se houver round) e `finish(false)` descarta; os dois criam `fresh(size)` |
 | clique em `data-pick` (vaga vazia) | `pick = slot` (tocar de novo solta) |
 | clique em `data-mc` (carta) | `place` na vaga iluminada (carta de MC vivo na chave fica `disabled`) |
 | clique em `data-del` (lixeira) | `place` com `name: ''` na vaga e `pick = slot` |
@@ -98,8 +100,10 @@ Mesma regra do `service-versus` (`organization-ranking.service.ts`): vitória de
 
 ## Telas
 
-`win` (não é salvo): `null` = só a Home; `battle` mostra `#tools` + `#arena` (chave + undo/redo) + `#select` (character select, se houver vaga iluminada); `hist` e `rank` mostram `#page`. Na carga, `win` começa em `battle` se a chave atual tem eventos. A barra inferior só abre/fecha janelas (HISTÓRICO · CHAVE · RANKING).
+`win` (não é salvo): `null` = só a Home; `battle` mostra `#tools` (só a dica, depois do 1º round) + `#arena` (chave + undo/redo) + `#select` (character select, se houver vaga iluminada); `hist` e `rank` mostram `#page`. Na carga, `win` começa em `battle` se a chave atual tem eventos. A barra inferior tem HISTÓRICO · VAGAS · CHAVE · ENCERRAR · RANKING: os botões de janela abrem/fecham (toggle); VAGAS (desabilitado depois do 1º round) e ENCERRAR (vermelho, desabilitado sem eventos) abrem uma folha `<dialog>` com foco no Cancelar.
+
+Vagas: `cut(s, n)` lista quem sai da chave com `n` vagas (vagas fora de `inSize`) e `resize(s, n)` tira da timeline esses `place` (e o redo) antes de mudar `size`, para aumentar de novo não trazer MC fantasma. O tamanho continua fora da timeline (não tem undo).
 
 ## Auto-teste
 
-São 25 `console.assert` logo após `rank()`. Os 8 da v8 cobrem a lixeira e a carta travada (MC na chave travado, lixeira esvazia a vaga e solta o MC, undo da lixeira, eliminado volta para a repescagem, repescado fica travado, override segue valendo, lixeira no override volta ao vencedor derivado) e os limites do zoom. Os 17 anteriores: Os 8 originais (avanço com 2 bolinhas, empate não pontua, vaga vazia bloqueia o confronto, jogo fora de ordem, override ganha, desfazer avanço, campeão e ranking) e 9 da v2: `place` no slot iluminado, `pick` move o destaque, montagem fora de ordem, round pela timeline, undo de round, undo de place, redo, ação nova limpa o redo e migração v1 → v2 (placar, campeão e ranking idênticos).
+São 28 `console.assert` logo após `rank()`. Os 3 da v9 cobrem as vagas (diminuir mostra quem sai, diminuir tira as vagas cortadas, aumentar de novo não traz fantasma). Os 8 da v8 cobrem a lixeira e a carta travada (MC na chave travado, lixeira esvazia a vaga e solta o MC, undo da lixeira, eliminado volta para a repescagem, repescado fica travado, override segue valendo, lixeira no override volta ao vencedor derivado) e os limites do zoom. Os 17 anteriores: Os 8 originais (avanço com 2 bolinhas, empate não pontua, vaga vazia bloqueia o confronto, jogo fora de ordem, override ganha, desfazer avanço, campeão e ranking) e 9 da v2: `place` no slot iluminado, `pick` move o destaque, montagem fora de ordem, round pela timeline, undo de round, undo de place, redo, ação nova limpa o redo e migração v1 → v2 (placar, campeão e ranking idênticos).

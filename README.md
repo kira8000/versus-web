@@ -21,14 +21,14 @@ Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **A 
 
 ## Como usar (operador)
 
-O app abre na Home: **VERSUS** + **Batalhar**. A chave, o histórico e o ranking abrem em janelas sobre a Home. A barra de baixo tem **HISTÓRICO** · **CHAVE** (no meio, em destaque) · **RANKING**; tocar de novo no mesmo botão fecha a janela. Na janela da chave: a chave em cima, com **↶ ↷** (desfazer/refazer) no canto, e a grade de MCs embaixo enquanto houver vaga para preencher. `+ vagas` e `Encerrar` ficam no topo.
+O app abre na Home: **VERSUS** + **Batalhar**. A chave, o histórico e o ranking abrem em janelas sobre a Home. A barra de baixo tem **HISTÓRICO** · **VAGAS** · **CHAVE** (no meio, em destaque) · **ENCERRAR** (em vermelho) · **RANKING**; tocar de novo em HISTÓRICO, CHAVE ou RANKING fecha a janela. Na janela da chave: a chave em cima, com **↶ ↷** (desfazer/refazer) no canto, e a grade de MCs embaixo enquanto houver vaga para preencher.
 
 | Ação | Como |
 |------|------|
 | Montar a chave | A vaga iluminada (pulsando) recebe o MC que você tocar na grade; o destaque passa para a próxima vaga |
 | Montar fora de ordem | Toque numa vaga vazia (ela passa a ser a iluminada) e depois no MC. Toque de novo na vaga para soltar |
 | MC novo | Digite o nome e `Adicionar`: ele entra na vaga iluminada e fica na grade |
-| Aumentar a chave | `+ vagas` dobra: 4 → 8 → 16 (só antes do 1º round) |
+| Aumentar ou diminuir a chave | `VAGAS` na barra → escolha 4, 8 ou 16 (só antes do 1º round). Ao diminuir, a folha avisa quem sai da chave |
 | Dar um round | Toque no nome de quem venceu **ou** na lateral do colchete do lado dele (aparece ●) |
 | Vencer o confronto | Com 2 bolinhas, o MC sobe sozinho para a próxima fase |
 | Empate | **Segure** 1,2 s no nome ou na área do confronto (uma barra enche) |
@@ -37,7 +37,7 @@ O app abre na Home: **VERSUS** + **Batalhar**. A chave, o histórico e o ranking
 | Errou | **↶** desfaz a última ação (MC posto, round, empate), uma por vez, até o início. **↷** refaz. Uma ação nova depois de desfazer apaga o que dava para refazer |
 | Repescagem / MC atrasado | Toque na vaga vazia onde ele entra e escolha o MC na grade (MC já eliminado também pode) |
 | Ver outras fases | Arraste para o lado (cada fase ocupa uma tela) |
-| Encerrar | `Encerrar` (a chave inteira vai para o Histórico e passa a contar no Ranking) |
+| Encerrar / recomeçar | `ENCERRAR` na barra → **Salvar e recomeçar** (a chave vai para o Histórico e conta no Ranking) ou **Recomeçar sem salvar** (vermelho: apaga a chave, não conta). A chave nova mantém o número de vagas |
 | Rever uma batalha | `HISTÓRICO` → toque no card: a chave abre dentro dele (só leitura; arraste para o lado). Toque de novo para fechar |
 | Ranking | aba `RANKING`: vitória 3 pts, vitória 2x0 +1, título 5 (mesma regra do `service-versus`) |
 

@@ -26,12 +26,28 @@
   .wh { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 4px 4px 16px; border-bottom:1px solid #333; }
   .wh b { color:var(--glow); font-size:14px; letter-spacing:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .wh button { flex:none; width:44px; height:44px; background:none; border:0; color:#aaa; font:inherit; font-size:20px; cursor:pointer; }
-  #tools { display:flex; gap:8px; justify-content:center; align-items:center; padding:10px 14px 0; min-height:54px; }
-  #tools button { min-height:44px; padding:0 16px; font:inherit; font-size:15px; font-weight:bold; background:#2c2c2c;
-                  color:#eee; border:1px solid #444; border-radius:22px; }
-  #tools button.primary { background:var(--win); color:#111; border-color:var(--win); }
-  #tools button:disabled { opacity:.35; }
+  #tools { display:flex; justify-content:center; align-items:center; padding:10px 14px 0; min-height:40px; }
   #tools small { color:#999; font-size:13px; }
+  /* folha de escolha (VAGAS, ENCERRAR): <dialog> nativo, fecha no Cancelar, no fundo ou no Esc */
+  dialog { width:min(420px, calc(100vw - 32px)); padding:0; background:#232323; color:#ddd; border:1px solid #444; border-radius:14px; }
+  dialog::backdrop { background:#000c; }
+  dialog > div { display:flex; flex-direction:column; gap:10px; padding:18px; }
+  dialog h2 { margin:0; font-size:15px; letter-spacing:2px; color:var(--glow); }
+  dialog h2.danger { color:#ff7b75; }
+  dialog p { margin:0 0 4px; color:#aaa; font-size:14px; line-height:1.4; }
+  dialog button { min-height:56px; padding:8px 14px; font:inherit; font-size:17px; font-weight:bold; text-align:left; color:#eee;
+                  background:#2c2c2c; border:1px solid #484848; border-radius:12px; cursor:pointer; }
+  dialog button small { display:block; margin-top:3px; font-size:13px; font-weight:normal; color:#bbb; }
+  dialog button:disabled { opacity:.45; cursor:default; }
+  dialog button.ok { background:var(--win); color:#111; border-color:var(--win); }
+  dialog button.ok small { color:#173d17; }
+  dialog button.danger { background:#b3261e; color:#fff; border-color:#e5524a; }
+  dialog button.danger small { color:#ffd9d6; }
+  dialog button.warn { border-color:#e5524a; }
+  dialog p.warn { color:#ff9a94; }
+  dialog .sizes { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+  dialog .sizes button { text-align:center; font-size:22px; }
+  dialog button.cancel { text-align:center; background:none; }
   #page { flex:1; overflow-y:auto; padding:14px; }
   .card { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; min-height:60px; padding:10px 14px;
           margin-bottom:10px; background:#262626; border:1px solid #333; border-radius:8px; font:inherit; color:#ddd; text-align:left; }
@@ -123,6 +139,7 @@
   nav button.active { color:var(--glow); border-color:var(--glow); }
   nav button.main.active { background:var(--win); color:#111; border-color:var(--win); box-shadow:0 0 14px #5fbf5f66; }
   nav button:disabled { opacity:.35; cursor:default; }
+  nav button.end { color:#ff7b75; border-color:#8a2f2a; }
   /* movimento reduzido: sem pulso nem pouso; a barra de segurar fica (é informação) */
   @media (prefers-reduced-motion: reduce) { #win, .suggested, .target, .land, .bump, .flash { animation:none !important; } }
 </style>
@@ -145,6 +162,7 @@
   </div>
 </div>
 <nav id="bar"></nav>
+<dialog id="sheet"></dialog>
 <script>
 const KEY = 'versus-web:v2', KEY_V1 = 'versus-web:v1', HOLD_MS = 1200, PAD = 28, LIVE_PAD = 76, MIN_ROW = 60;
 let ROW = 60, COL = 300; // recalculados no render: 1 coluna = largura da tela, 1ª fase = altura útil
@@ -183,6 +201,20 @@ function usedNames(s) {
   return new Set(derive(view(s)).cols.flat().filter(x => x.name && x.state !== 'lose').map(x => x.name.toLowerCase()));
 }
 const ZMIN = 0.4, ZMAX = 2.5, clampZoom = z => Math.min(ZMAX, Math.max(ZMIN, z));
+
+// Vagas (4 · 8 · 16), só antes do 1º round. O tamanho fica fora da timeline.
+const SIZES = [4, 8, 16];
+const inSize = (slot, n) => { const [c, i] = slot.split('-').map(Number); return c < Math.log2(n) && i < n / 2 ** c; };
+// MCs que saem da chave se ela passar a ter n vagas (só diminuir corta).
+function cut(s, n) {
+  const v = view(s);
+  return [...v.names.map((x, i) => [`0-${i}`, x]), ...Object.entries(v.overrides)].filter(([sl, x]) => x.trim() && !inSize(sl, n)).map(([, x]) => x.trim());
+}
+// Diminuir tira da timeline os place das vagas cortadas (e o redo): aumentar de novo não traz fantasma.
+function resize(s, n) {
+  s.events = s.events.slice(0, s.cursor).filter(e => e.t !== 'place' || inSize(e.slot, n));
+  s.cursor = s.events.length; s.size = n; return s;
+}
 
 // v1 → v2: names viram place na 1ª fase, taps viram round/draw, overrides viram place nas fases seguintes.
 function toV2(x) {
@@ -296,6 +328,15 @@ function rank(history) {
   console.assert(derive(view(u)).cols[1][1].name === 'C', 'lixeira no override volta ao vencedor derivado');
   console.assert(clampZoom(10) === ZMAX && clampZoom(0) === ZMIN && clampZoom(1) === 1, 'limites do zoom');
 
+  // vagas: aumentar e diminuir antes do 1º round
+  const z = fresh(8), Z = (slot, name) => push(z, { t: 'place', slot, name });
+  Z('0-0', 'A'); Z('0-5', 'E'); Z('2-0', 'S');
+  console.assert(cut(z, 8).length === 0 && cut(z, 16).length === 0 && cut(z, 4).join() === 'E,S', 'diminuir mostra quem sai');
+  resize(z, 4);
+  console.assert(z.size === 4 && view(z).names.join() === 'A,,,' && z.events.length === 1 && z.cursor === 1 && !derive(view(z)).champion, 'diminuir tira as vagas cortadas');
+  resize(z, 8);
+  console.assert(view(z).names.join() === 'A,,,,,,,' && target(z) === '0-1', 'aumentar de novo não traz fantasma');
+
   // migração v1 → v2: mesmo placar, campeão e ranking
   const sig = x => { const r = derive(view(x)); return JSON.stringify([r.cols.map(c => c.map(y => [y.name, y.dots, y.state])), r.champion]); };
   const v1 = { current: { id: '1', createdAt: 1, size: 4, started: true, names: N, overrides: { '1-1': 'Z' }, taps: [t('0-0', '0-0'), t('0-0', null), t('0-0', '0-0')] },
@@ -387,7 +428,9 @@ function render() {
   const nb = (attr, icon, label, cls = '') => `<button ${attr} class="${cls}"><i>${icon}</i>${label}</button>`;
   document.getElementById('bar').innerHTML =
     nb('data-tab="hist"', '☰', 'HISTÓRICO', win === 'hist' ? 'active' : '') +
+    nb(`data-act="sizes" aria-label="Vagas: ${c0.size}" ${played ? 'disabled' : ''}`, c0.size, 'VAGAS') + // só antes do 1º round
     nb('data-tab="battle"', '⚔', 'CHAVE', 'main' + (liveBoard ? ' active' : '')) +
+    nb(`data-act="end" ${c0.events.length ? '' : 'disabled'}`, '⏹', 'ENCERRAR', 'end') +
     nb('data-tab="rank"', '★', 'RANKING', win === 'rank' ? 'active' : '');
   const filled = v0.names.filter(n => n.trim()).length;
   document.getElementById('home').innerHTML = `<h1>VERSUS</h1>
@@ -399,14 +442,11 @@ function render() {
   document.getElementById('wtitle').textContent = win === 'rank' ? 'RANKING'
     : win === 'hist' ? 'HISTÓRICO' : played ? 'CHAVE · AO VIVO' : 'NOVA CHAVE';
   const tools = document.getElementById('tools'), arena = document.getElementById('arena'), sel = document.getElementById('select');
-  arena.hidden = !liveBoard; tools.hidden = !liveBoard;
+  // VAGAS e ENCERRAR ficam na barra inferior; undo/redo no botão flutuante; aqui só a dica do ao vivo
+  arena.hidden = !liveBoard; tools.hidden = !liveBoard || !played;
   document.getElementById('page').hidden = liveBoard;
   if (!liveBoard) { sel.hidden = true; renderPage(); return; }
-
-  // ações da janela; undo/redo ficam no botão flutuante da chave
-  tools.innerHTML = (played ? '<small>Toque = round · segure = empate</small>'
-    : `<button data-act="grow" ${c0.size >= 16 ? 'disabled' : ''}>+ vagas (${c0.size}→${Math.min(c0.size * 2, 16)})</button>`)
-    + `<button data-act="new" ${c0.events.length ? '' : 'disabled'}>Encerrar</button>`;
+  tools.innerHTML = '<small>Toque = round · segure = empate</small>';
   document.querySelector('[data-act="undo"]').disabled = c0.cursor === 0;
   document.querySelector('[data-act="redo"]').disabled = c0.cursor === c0.events.length;
 
@@ -491,15 +531,44 @@ document.addEventListener('click', e => {
   if (v !== undefined) { const i = Number(v); openHist.has(i) ? openHist.delete(i) : openHist.add(i); render(); return; }
   if (a === 'undo' && s.cursor > 0) { undo(s); fx = fxOf(s.events[s.cursor], s, false); }
   if (a === 'redo' && s.cursor < s.events.length) { redo(s); fx = fxOf(s.events[s.cursor - 1], s); }
-  if (a === 'grow' && s.size < 16 && !view(s).taps.length) s.size *= 2;
-  if (a === 'new') {
-    if (!confirm('Encerrar esta batalha? Ela vai para o Histórico e conta no Ranking.')) return;
-    const vs = view(s), champ = derive(vs).champion, events = s.events.slice(0, s.cursor);
-    // guarda a chave inteira (eventos até o cursor) para poder rever o resultado depois
-    if (champ || vs.taps.length) { db.history.unshift({ ...s, events, cursor: events.length, champion: champ }); openHist.clear(); } // índices mudam
-    db.current = fresh(); pick = null; zoom.board = 1;
-  }
+  if (a === 'sizes') { openSizes(); return; }
+  if (a === 'end') { openEnd(); return; }
   commit();
+});
+
+// ---------- folhas da barra: VAGAS e ENCERRAR ----------
+const sheet = document.getElementById('sheet');
+const CANCEL = '<button class="cancel" data-sheet autofocus>Cancelar</button>'; // foco no Cancelar: Enter nunca apaga nada
+function openSizes() {
+  const s = cur(), outs = SIZES.map(n => [n, cut(s, n)]).filter(([, out]) => out.length);
+  sheet.innerHTML = `<div><h2>VAGAS NA CHAVE</h2><p>Aumente ou diminua antes do 1º round.</p>
+    <div class="sizes">${SIZES.map(n => `<button data-size="${n}" aria-pressed="${n === s.size}" class="${n === s.size ? 'ok' : cut(s, n).length ? 'warn' : ''}">${n}</button>`).join('')}</div>
+    ${outs.map(([n, out]) => `<p class="warn">Com ${n}: ${out.length > 1 ? 'saem' : 'sai'} ${esc(out.join(', '))}</p>`).join('')}${CANCEL}</div>`;
+  sheet.showModal();
+}
+function openEnd() {
+  const vs = view(cur()), champ = derive(vs).champion, saves = !!(champ || vs.taps.length);
+  sheet.innerHTML = `<div><h2 class="danger">ENCERRAR A CHAVE</h2>
+    <p>${champ ? `Campeão: 👑 ${esc(champ)}.` : saves ? 'A batalha ainda não tem campeão.' : 'Nenhum round jogado: não há o que salvar.'}</p>
+    ${saves ? '<button class="ok" data-end="save">Salvar e recomeçar<small>Vai para o Histórico e conta no Ranking</small></button>' : ''}
+    <button class="danger" data-end="drop">Recomeçar sem salvar<small>Apaga esta chave. Não vai para o Histórico nem conta no Ranking</small></button>${CANCEL}</div>`;
+  sheet.showModal();
+}
+// Recomeça com o mesmo número de vagas. keep = guarda a chave inteira (eventos até o cursor) no histórico.
+function finish(keep) {
+  const s = cur(), vs = view(s), champ = derive(vs).champion, events = s.events.slice(0, s.cursor);
+  if (keep && (champ || vs.taps.length)) { db.history.unshift({ ...s, events, cursor: events.length, champion: champ }); openHist.clear(); } // índices mudam
+  db.current = fresh(s.size); pick = null; zoom.board = 1;
+}
+sheet.addEventListener('click', e => {
+  if (e.target === sheet) { sheet.close(); return; } // toque no fundo fecha
+  const b = e.target.closest('[data-size], [data-end], [data-sheet]');
+  if (!b) return;
+  e.stopPropagation();
+  const s = cur(), { size, end } = b.dataset;
+  sheet.close();
+  if (size && +size !== s.size && !view(s).taps.length) { resize(s, +size); pick = null; win = 'battle'; commit(); }
+  if (end) { finish(end === 'save'); win = 'battle'; commit(); }
 });
 
 document.getElementById('add').addEventListener('submit', e => {
