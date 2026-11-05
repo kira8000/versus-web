@@ -27,7 +27,7 @@ O app é usado ao vivo, no celular, num ambiente barulhento. Um erro aqui trava 
 
 ## Cabeça 1 — UX de palco
 
-1. **Um toque por round.** Nada de confirmação, modal ou tela extra no fluxo ao vivo. A janela da chave fica aberta durante o ao vivo; a barra inferior tem HISTÓRICO · VAGAS · CHAVE · ENCERRAR · RANKING (janelas em toggle; VAGAS e ENCERRAR abrem uma folha de escolha, fora do fluxo do round). Undo/redo ficam no botão flutuante da chave. Ação destrutiva (recomeçar sem salvar) é vermelha e pede escolha explícita.
+1. **Um toque por round.** Nada de confirmação, modal ou tela extra no fluxo ao vivo. Chave, Histórico e Ranking são telas cheias, sem modal; a barra inferior é a única navegação: HISTÓRICO · VAGAS · CHAVE/HOME · ENCERRAR · RANKING ( VAGAS e ENCERRAR abrem uma folha de escolha, fora do fluxo do round). Undo/redo ficam no botão flutuante da chave. Ação destrutiva (recomeçar sem salvar) é vermelha e pede escolha explícita.
 2. **Feedback imediato:** vaga iluminada, MC pousando na vaga, bolinha pulsando, cor (verde = vence, vermelho = perde), vencedor subindo, barra ao segurar. Respeite `prefers-reduced-motion`.
 3. **Alvos de toque ≥ 48px** (nome, lateral do colchete, carta, undo/redo). Legível a 1 braço de distância. Contraste ≥ 4.5:1. Estado nunca só por cor: bolinhas e 👑 reforçam.
 4. **Flexibilidade:** sem ordem obrigatória; qualquer vaga vazia aceita um MC (repescagem); todo erro volta com undo.

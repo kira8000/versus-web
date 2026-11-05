@@ -1,6 +1,6 @@
 # Arquitetura
 
-Tudo vive em `index.html`. Uma Home (`#home`) no fundo e três janelas sobrepostas (`#win`): CHAVE, HISTÓRICO (lista) e RANKING (tabela). O fluxo é sempre o mesmo:
+Tudo vive em `index.html`. Uma Home (`#home`) no fundo e três telas cheias por cima (`#win`, sem janela nem ✕): CHAVE, HISTÓRICO (lista) e RANKING (tabela). O fluxo é sempre o mesmo:
 
 ```
 ação do operador → push(evento) | undo | redo → save() → render() → derive(view(current)) → SVG + slots
@@ -62,14 +62,16 @@ Desfazer é `cursor--`: como tudo é derivado, isso também desfaz um avanço ou
 
 
 - `COL` = largura do contêiner de rolagem (1 fase = 1 tela, com `scroll-snap`).
-- `ROW` = `(altura útil − LIVE_PAD) / size`, no mínimo `MIN_ROW` = 60 (alvo de 48px + 12 de respiro). Com a grade aberta ou 16 vagas no celular, a chave rola na vertical e a vaga iluminada é trazida à vista sozinha.
+- `ROW` = `(altura útil − LIVE_PAD) / size`, no mínimo `MIN_ROW` = 44 (alvo de toque mínimo; a altura do slot é `min(48, ROW)`). Assim, uma chave de 8 cabe na 1ª tela do celular (zoom inicial afastado). Com a grade aberta ou 16 vagas no celular, a chave rola na vertical e a vaga iluminada é trazida à vista sozinha.
 - `LIVE_PAD` = 76: espaço no topo para o undo/redo flutuante não cobrir o 1º nome.
 - Posição do slot: `x = c·COL + 16`, `y = PAD + (i + ½)·2ᶜ·ROW`. O nome fica **sobre** a linha.
 - Linhas em um `<svg>` atrás: horizontal sob o nome, vertical ligando o par, horizontal até a fase seguinte. A cor segue o `state` (verde, vermelho ou cinza).
-- Vaga vazia (no palco) vira `<button data-pick>`; a iluminada ganha `.target` (brilho + pulso). Vaga com nome vira `<button>` com o nome e as bolinhas.
+- **Chave generativa:** `visible(d)` (pura, testada) diz o que desenhar. `slots` = a 1ª fase inteira + toda vaga com nome (vencedor, repescado, campeão) + a vaga vazia ao lado de uma vaga com nome quando o confronto que a alimenta travou (falta MC lá atrás: `stuck`), para a repescagem continuar possível. `links` = confrontos com as 2 vagas à vista: só eles ganham o colchete (as verticais). O galho até a fase seguinte aparece quando a vaga de lá está em `slots`. A largura da chave vai só até a última fase à vista.
+- Animação: `drawn` (estado de tela) guarda os ids das linhas e vagas do último desenho do palco. O que é novo ganha `line.grow` (`pathLength=1` + `stroke-dashoffset`, a linha "desenhando") e `.sprout` (o nome brota depois do galho). Undo só recolhe, sem animação. No 1º desenho nada anima.
+- Vaga vazia (no palco) vira `<button data-pick>`; a selecionada ganha `.target` (contorno suave) e uma seta `▶` logo antes do ponto onde o nome entra, sobre a linha. Vaga com nome vira `<button>` com o nome e as bolinhas.
 - `.area` = duas faixas invisíveis de 56px nas laterais do colchete jogável: a de cima é do MC de cima, a de baixo do MC de baixo. Toque = round; segurar = empate.
 - `fx` (estado de tela) anima a última ação: `.land` (MC pousa / vencedor sobe), `.bump` (bolinha nova), `.flash` (empate). `prefers-reduced-motion` desliga.
-- Character select (`#select`): só aparece com vaga iluminada. `roster()` = MCs do ranking em ordem de pontos + todo nome de evento `place` do histórico e da chave atual (quem saiu pela lixeira continua com a carta). Quem está em `usedNames(s)` (vivo na chave: tem nome e `state !== 'lose'`) fica `.used` + `disabled`; quem só aparece perdendo fica livre para a repescagem. `place()` recusa nome em `usedNames` (cobre o `Adicionar`).
+- Character select (`#select`): só aparece com vaga iluminada. `roster()` = MCs do ranking em ordem de pontos + todo nome de evento `place` do histórico e da chave atual (quem saiu pela lixeira continua com a carta). Quem está em `usedNames(s)` (vivo na chave: tem nome e `state !== 'lose'`) fica `.used` + `disabled`; quem só aparece perdendo fica livre para a repescagem. `place()` recusa nome em `usedNames`. O `Adicionar` só cria a carta: `addCard()` (pura) põe o nome em `cards`, uma lista da sessão que nunca é salva e aparece no topo da grade com `.new` (destaque breve). Não gera evento.
 - Lixeira (`.del`, `data-del`): botão 48×48 ao lado do nome, fora do `button.slot`. Só em vaga preenchida por `place` (1ª fase com nome, ou override não vazio) e com `editable` (confronto sem round). O clique faz `push` de `{ t:'place', slot, name:'' }` e põe `pick = slot`.
 - Zoom (`zoom = { board, hist }`, estado de tela): CSS `zoom` no `#board` e no wrapper de cada `.mini`, limitado por `clampZoom()` a 0,4x–2,5x. `touchstart`/`touchmove` com 2 dedos dentro de `#scroll` ou `.mini` (não passivos, com `preventDefault`) e `wheel` com `ctrlKey` chamam `setZoom()`, que mantém o ponto entre os dedos parado ajustando `scrollLeft/Top`. A pinça cancela o segurar em curso, e o `pointerdown` ignora o 2º dedo (`isPrimary`). `#scroll.zoomed` desliga o snap. O auto-scroll da vaga iluminada mede com `getBoundingClientRect`, que já inclui o zoom. O zoom da página fica bloqueado por viewport, `html { touch-action: pan-x pan-y }` e `gesturestart`.
 - Na carga, `render()` roda 2 vezes: o 2º passe mede a altura com `#tools` já preenchido.
@@ -85,12 +87,13 @@ Desfazer é `cursor--`: como tudo é derivado, isso também desfaz um avanço ou
 | clique em `data-mc` (carta) | `place` na vaga iluminada (carta de MC vivo na chave fica `disabled`) |
 | clique em `data-del` (lixeira) | `place` com `name: ''` na vaga e `pick = slot` |
 | `touch*` com 2 dedos / `wheel` + `ctrlKey` na chave | zoom só da chave (`setZoom`) |
-| `submit` do `Adicionar` | `place` do nome digitado na vaga iluminada |
+| `submit` do `Adicionar` | cria a carta em `cards` (sem evento) e a destaca |
 | `pointerdown` | inicia o timer de 1200 ms e a classe `.holding` (barra enchendo) no confronto |
 | `pointerup` antes do tempo | round para aquele slot (nome ou lateral do colchete) |
 | timer completo | empate (`winner: null`) + `.flash` |
 | `pointercancel` / `pointerleave` | cancela |
-| clique em `data-tab` | abre a janela `win` (`hist` · `battle` · `rank`); o mesmo botão de novo (ou o ✕, `data-close`) fecha e volta à Home. Fora de `battle`, `render()` esconde o tabuleiro e chama `renderPage()` |
+| clique em `data-tab` | abre a tela `win` (`hist` · `battle` · `rank`); Histórico ou Ranking de novo volta à Home. Fora de `battle`, `render()` esconde o tabuleiro e chama `renderPage()` |
+| clique em `data-home` | botão central dentro da chave: volta à Home (`win = null`) |
 | clique em `data-view` (card do histórico) | alterna `i` em `openHist`; o card expandido desenha `bracket(db.history[i], { col: 170, row: 40, slotH: 30 })` só leitura |
 | `resize` | re-renderiza, exceto com campo focado |
 
@@ -100,10 +103,10 @@ Mesma regra do `service-versus` (`organization-ranking.service.ts`): vitória de
 
 ## Telas
 
-`win` (não é salvo): `null` = só a Home; `battle` mostra `#tools` (só a dica, depois do 1º round) + `#arena` (chave + undo/redo) + `#select` (character select, se houver vaga iluminada); `hist` e `rank` mostram `#page`. Na carga, `win` começa em `battle` se a chave atual tem eventos. A barra inferior tem HISTÓRICO · VAGAS · CHAVE · ENCERRAR · RANKING: os botões de janela abrem/fecham (toggle); VAGAS (desabilitado depois do 1º round) e ENCERRAR (vermelho, desabilitado sem eventos) abrem uma folha `<dialog>` com foco no Cancelar.
+`win` (não é salvo): `null` = só a Home; `battle` mostra `#tools` (só a dica, depois do 1º round) + `#arena` (chave + undo/redo) + `#select` (character select, se houver vaga iluminada); `hist` e `rank` mostram `#page`. Na carga, `win` começa em `battle` se a chave atual tem eventos. A barra inferior tem HISTÓRICO · VAGAS · CHAVE · ENCERRAR · RANKING: o botão central abre a chave (CHAVE ou BATALHA) ou, dentro dela, volta à Home (HOME); VAGAS (desabilitado depois do 1º round) e ENCERRAR (vermelho, desabilitado sem eventos) abrem uma folha `<dialog>` com foco no Cancelar.
 
 Vagas: `cut(s, n)` lista quem sai da chave com `n` vagas (vagas fora de `inSize`) e `resize(s, n)` tira da timeline esses `place` (e o redo) antes de mudar `size`, para aumentar de novo não trazer MC fantasma. O tamanho continua fora da timeline (não tem undo).
 
 ## Auto-teste
 
-São 28 `console.assert` logo após `rank()`. Os 3 da v9 cobrem as vagas (diminuir mostra quem sai, diminuir tira as vagas cortadas, aumentar de novo não traz fantasma). Os 8 da v8 cobrem a lixeira e a carta travada (MC na chave travado, lixeira esvazia a vaga e solta o MC, undo da lixeira, eliminado volta para a repescagem, repescado fica travado, override segue valendo, lixeira no override volta ao vencedor derivado) e os limites do zoom. Os 17 anteriores: Os 8 originais (avanço com 2 bolinhas, empate não pontua, vaga vazia bloqueia o confronto, jogo fora de ordem, override ganha, desfazer avanço, campeão e ranking) e 9 da v2: `place` no slot iluminado, `pick` move o destaque, montagem fora de ordem, round pela timeline, undo de round, undo de place, redo, ação nova limpa o redo e migração v1 → v2 (placar, campeão e ranking idênticos).
+São 33 `console.assert` logo após `rank()`. Os 5 da v10: `Adicionar` só cria a carta (sem evento), e a regra do que é visível: só a 1ª fase sem vencedor, galho solto com 1 vencedor, conexão com 2, e a vaga de repescagem quando o confronto travou. Os 3 da v9 cobrem as vagas (diminuir mostra quem sai, diminuir tira as vagas cortadas, aumentar de novo não traz fantasma). Os 8 da v8 cobrem a lixeira e a carta travada (MC na chave travado, lixeira esvazia a vaga e solta o MC, undo da lixeira, eliminado volta para a repescagem, repescado fica travado, override segue valendo, lixeira no override volta ao vencedor derivado) e os limites do zoom. Os 17 anteriores: Os 8 originais (avanço com 2 bolinhas, empate não pontua, vaga vazia bloqueia o confronto, jogo fora de ordem, override ganha, desfazer avanço, campeão e ranking) e 9 da v2: `place` no slot iluminado, `pick` move o destaque, montagem fora de ordem, round pela timeline, undo de round, undo de place, redo, ação nova limpa o redo e migração v1 → v2 (placar, campeão e ranking idênticos).
