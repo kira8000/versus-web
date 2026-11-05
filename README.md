@@ -21,18 +21,19 @@ Chave de batalha de rima (batalha de MCs) que roda no navegador do celular. **A 
 
 ## Como usar (operador)
 
-O app abre na Home: **VERSUS** + **Batalhar**. A chave, o histórico e o ranking abrem em janelas sobre a Home. A barra de baixo tem **HISTÓRICO** · **VAGAS** · **CHAVE** (no meio, em destaque) · **ENCERRAR** (em vermelho) · **RANKING**; tocar de novo em HISTÓRICO, CHAVE ou RANKING fecha a janela. Na janela da chave: a chave em cima, com **↶ ↷** (desfazer/refazer) no canto, e a grade de MCs embaixo enquanto houver vaga para preencher.
+O app abre na Home: **VERSUS** + **Batalhar**. Chave, Histórico e Ranking são telas cheias, sem janela nem ✕: a barra de baixo é a única navegação, com **HISTÓRICO** · **VAGAS** · botão central · **ENCERRAR** (em vermelho) · **RANKING**. Fora da chave, o botão central mostra **CHAVE** (ou **BATALHA**, com a chave ao vivo) e abre a chave; dentro dela, vira **HOME** e volta para a Home. Tocar de novo em HISTÓRICO ou RANKING também volta para a Home. Na tela da chave: a chave em cima, com **↶ ↷** (desfazer/refazer) no canto, e a grade de MCs embaixo enquanto houver vaga para preencher.
 
 | Ação | Como |
 |------|------|
-| Montar a chave | A vaga iluminada (pulsando) recebe o MC que você tocar na grade; o destaque passa para a próxima vaga |
-| Montar fora de ordem | Toque numa vaga vazia (ela passa a ser a iluminada) e depois no MC. Toque de novo na vaga para soltar |
-| MC novo | Digite o nome e `Adicionar`: ele entra na vaga iluminada e fica na grade |
+| Montar a chave | A vaga selecionada (contorno suave e seta **▶**) recebe o MC que você tocar na grade; a seleção passa para a próxima vaga |
+| Montar fora de ordem | Toque numa vaga vazia (o contorno e a seta vão para ela) e depois no MC. Toque de novo na vaga para soltar |
+| MC novo | Digite o nome e `Adicionar`: aparece uma carta nova (destacada) no topo da grade. Toque nela para pôr o MC na vaga. A carta vale só nesta sessão; se o MC entrou na chave, ele continua na grade depois |
+| Ver a chave | Ela abre afastada (uma chave de 8 cabe na tela do celular). Role ou dê **pinça** para aproximar. As fases seguintes aparecem conforme os vencedores sobem: um galho por vencedor e o colchete quando os 2 confrontos que se enfrentam têm vencedor |
 | Aumentar ou diminuir a chave | `VAGAS` na barra → escolha 4, 8 ou 16 (só antes do 1º round). Ao diminuir, a folha avisa quem sai da chave |
 | Dar um round | Toque no nome de quem venceu **ou** na lateral do colchete do lado dele (aparece ●) |
 | Vencer o confronto | Com 2 bolinhas, o MC sobe sozinho para a próxima fase |
 | Empate | **Segure** 1,2 s no nome ou na área do confronto (uma barra enche) |
-| MC errado numa vaga | Toque na **lixeira vermelha** ao lado do nome (só antes do 1º round daquele confronto): a vaga esvazia e fica iluminada, e o MC volta a ficar disponível na grade. MC que já está vivo na chave fica cinza e não entra de novo |
+| MC errado numa vaga | Toque na **lixeira vermelha** ao lado do nome (só antes do 1º round daquele confronto): a vaga esvazia e fica selecionada, e o MC volta a ficar disponível na grade. MC que já está vivo na chave fica cinza e não entra de novo |
 | Ampliar a chave | **Pinça** com 2 dedos sobre a chave (ou no card do Histórico); só a chave muda de tamanho. No computador, Ctrl + roda/trackpad |
 | Errou | **↶** desfaz a última ação (MC posto, round, empate), uma por vez, até o início. **↷** refaz. Uma ação nova depois de desfazer apaga o que dava para refazer |
 | Repescagem / MC atrasado | Toque na vaga vazia onde ele entra e escolha o MC na grade (MC já eliminado também pode) |
