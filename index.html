@@ -11,7 +11,7 @@
   html { touch-action:pan-x pan-y; }
   body { margin:0; height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden;
          background:var(--bg); color:#ddd; font:18px/1.2 ui-monospace,"Cascadia Mono",Consolas,monospace; }
-  /* palco: a Home fica no fundo; as janelas (chave, histórico, ranking) sobrepõem com respiro */
+  /* palco: a Home fica no fundo; chave, histórico e ranking são telas cheias por cima (sem janela, sem ✕) */
   #stage { flex:1; min-height:0; position:relative; overflow:hidden; }
   #home { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
           gap:28px; padding:24px; text-align:center; }
@@ -19,13 +19,7 @@
   .cta { min-height:60px; min-width:230px; padding:0 32px; font:inherit; font-size:20px; font-weight:bold; letter-spacing:3px;
          background:var(--win); color:#111; border:0; border-radius:30px; box-shadow:0 0 22px #5fbf5f55; cursor:pointer; }
   #home small { color:#999; font-size:14px; }
-  #win { --gap:clamp(10px, 3vw, 24px); position:absolute; inset:var(--gap); top:calc(var(--gap) + env(safe-area-inset-top));
-         display:flex; flex-direction:column; background:#232323; border:1px solid #3c3c3c; border-radius:14px; overflow:hidden;
-         box-shadow:0 0 0 100vmax #000b, 0 14px 36px #000; animation:pop .14s ease-out; }
-  @keyframes pop { from { opacity:0; transform:translateY(10px) scale(.98); } }
-  .wh { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 4px 4px 16px; border-bottom:1px solid #333; }
-  .wh b { color:var(--glow); font-size:14px; letter-spacing:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .wh button { flex:none; width:44px; height:44px; background:none; border:0; color:#aaa; font:inherit; font-size:20px; cursor:pointer; }
+  #win { position:absolute; inset:0; padding-top:env(safe-area-inset-top); display:flex; flex-direction:column; background:var(--bg); overflow:hidden; }
   #tools { display:flex; justify-content:center; align-items:center; padding:10px 14px 0; min-height:40px; }
   #tools small { color:#999; font-size:13px; }
   /* folha de escolha (VAGAS, ENCERRAR): <dialog> nativo, fecha no Cancelar, no fundo ou no Esc */
@@ -73,7 +67,7 @@
   .empty { margin-top:48px; }
   [hidden] { display:none !important; }
   /* uma fase por tela; a barra de rolagem fica colada acima dos botões e precisa ser bem visível */
-  /* janela CHAVE: chave em cima (com undo/redo flutuante), character select embaixo */
+  /* tela CHAVE: chave em cima (com undo/redo flutuante), character select embaixo */
   #arena { flex:1; min-height:0; position:relative; display:flex; }
   .fab { position:absolute; top:10px; right:16px; z-index:2; display:flex; gap:8px; }
   .fab button { width:48px; height:48px; border-radius:50%; font:inherit; font-size:22px; color:#eee; background:#2c2c2cee;
@@ -94,6 +88,8 @@
   .mc span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mc small { color:var(--glow); font-size:11px; font-weight:normal; }
   .mc.used { opacity:.4; cursor:default; }
+  .mc.new { animation:fresh 1.4s ease-out; } /* carta recém-criada pelo Adicionar */
+  @keyframes fresh { from { border-color:var(--glow); background:#3d3720; box-shadow:0 0 0 3px #ffd75e55; } }
   /* lixeira: tira o MC da vaga (não apaga o MC da grade) */
   .del { position:absolute; width:48px; height:48px; display:flex; align-items:center; justify-content:center; padding:0;
          background:none; border:0; border-radius:10px; cursor:pointer; touch-action:manipulation; }
@@ -115,7 +111,15 @@
   button.slot:not(:disabled) { cursor:pointer; }
   /* vaga iluminada: o próximo MC tocado na grade cai aqui */
   .slot.pick { cursor:pointer; }
-  .slot.target { background:linear-gradient(transparent 55%, #ffd75e2a); box-shadow:inset 0 -4px 0 var(--glow); animation:pulse 1.1s ease-in-out infinite; }
+  /* contorno suave + seta ▶ logo antes do ponto onde o nome entra, sobre a linha */
+  .slot.target { outline:2px solid #ffd75e5c; outline-offset:-2px; border-radius:8px; background:#ffd75e0f; }
+  .slot .arrow { margin-left:-16px; color:var(--glow); font-size:15px; line-height:1; animation:nudge 1.1s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform:translateX(4px); } }
+  /* chave generativa: galho desenhando (pathLength=1) e nome brotando no slot que acabou de aparecer */
+  line.grow { animation:draw .35s ease-out backwards; }
+  @keyframes draw { from { stroke-dasharray:1; stroke-dashoffset:1; } to { stroke-dasharray:1; stroke-dashoffset:0; } }
+  .sprout { animation:sprout .45s ease-out .25s backwards; }
+  @keyframes sprout { from { opacity:0; transform:translateY(8px); text-shadow:0 0 16px var(--glow); } }
   .land { transform-origin:left bottom; animation:land .45s ease-out; }
   @keyframes land { from { transform:scale(1.3); color:var(--glow); text-shadow:0 0 16px var(--glow); } }
   .bump { display:inline-block; font-weight:inherit; animation:bump .45s ease-out; }
@@ -130,7 +134,7 @@
   @keyframes fill { from { transform:scaleX(0); } to { transform:scaleX(1); } }
   .flash { animation:flash .5s; } @keyframes flash { 0% { background:#fff4; } }
   .champ { color:var(--glow); font-size:18px; text-shadow:0 0 10px var(--glow); }
-  /* barra inferior persistente: botão de janela abre/fecha (toggle); CHAVE no meio, maior */
+  /* barra inferior: única navegação; aba ativa destacada; botão central maior (CHAVE/BATALHA ou HOME) */
   nav { display:flex; gap:6px; align-items:center; padding:8px 10px calc(8px + env(safe-area-inset-bottom)); background:#161616; border-top:1px solid #2a2a2a; }
   nav button { flex:1; min-width:0; min-height:52px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
                padding:0 2px; font:inherit; font-size:10px; font-weight:bold; background:none; color:#aaa; border:1px solid #333; border-radius:10px; cursor:pointer; }
@@ -141,14 +145,13 @@
   nav button:disabled { opacity:.35; cursor:default; }
   nav button.end { color:#ff7b75; border-color:#8a2f2a; }
   /* movimento reduzido: sem pulso nem pouso; a barra de segurar fica (é informação) */
-  @media (prefers-reduced-motion: reduce) { #win, .suggested, .target, .land, .bump, .flash { animation:none !important; } }
+  @media (prefers-reduced-motion: reduce) { .suggested, .arrow, .land, .bump, .flash, .grow, .sprout, .mc.new { animation:none !important; } }
 </style>
 </head>
 <body>
 <div id="stage">
   <section id="home"></section>
-  <div id="win" role="dialog" hidden>
-    <div class="wh"><b id="wtitle"></b><button data-close aria-label="Fechar">✕</button></div>
+  <div id="win" hidden>
     <div id="tools"></div>
     <div id="arena">
       <div id="scroll"><div id="board"></div></div>
@@ -164,7 +167,8 @@
 <nav id="bar"></nav>
 <dialog id="sheet"></dialog>
 <script>
-const KEY = 'versus-web:v2', KEY_V1 = 'versus-web:v1', HOLD_MS = 1200, PAD = 28, LIVE_PAD = 76, MIN_ROW = 60;
+// MIN_ROW = 44: alvo de toque mínimo; com ele, uma chave de 8 cabe quase inteira na 1ª tela (zoom inicial distante).
+const KEY = 'versus-web:v2', KEY_V1 = 'versus-web:v1', HOLD_MS = 1200, PAD = 28, LIVE_PAD = 76, MIN_ROW = 44;
 let ROW = 60, COL = 300; // recalculados no render: 1 coluna = largura da tela, 1ª fase = altura útil
 
 // ---------- lógica pura ----------
@@ -214,6 +218,24 @@ function cut(s, n) {
 function resize(s, n) {
   s.events = s.events.slice(0, s.cursor).filter(e => e.t !== 'place' || inSize(e.slot, n));
   s.cursor = s.events.length; s.size = n; return s;
+}
+
+// Chave generativa (só desenho): a 1ª fase aparece inteira; das seguintes, só vaga com nome (vencedor, repescado, campeão).
+// Exceção: a vaga vazia ao lado de uma vaga com nome aparece quando o confronto que a alimenta travou (falta MC lá atrás),
+// para a repescagem continuar possível. links = confrontos com colchete (as 2 vagas à vista).
+function visible({ cols }) {
+  const L = cols.length - 1, slots = new Set(), links = new Set();
+  const stuck = (c, m) => [2 * m, 2 * m + 1].some(j => !cols[c][j].name && (c === 0 || stuck(c - 1, j)));
+  cols.forEach((cl, c) => cl.forEach((x, i) => {
+    if (c === 0 || x.name || (c < L && cols[c][i ^ 1].name && stuck(c - 1, i))) slots.add(x.id);
+  }));
+  for (let c = 0; c < L; c++) for (let m = 0; m < cols[c].length / 2; m++) if (slots.has(`${c}-${2 * m}`) && slots.has(`${c}-${2 * m + 1}`)) links.add(`${c}-${m}`);
+  return { slots, links };
+}
+// Adicionar só cria a carta (lista da sessão, nunca salva): sem evento, sem vaga. Nome repetido não duplica.
+function addCard(cards, name) {
+  const n = name.trim();
+  return !n || cards.some(c => c.toLowerCase() === n.toLowerCase()) ? cards : [n, ...cards];
 }
 
 // v1 → v2: names viram place na 1ª fase, taps viram round/draw, overrides viram place nas fases seguintes.
@@ -337,6 +359,24 @@ function rank(history) {
   resize(z, 8);
   console.assert(view(z).names.join() === 'A,,,,,,,' && target(z) === '0-1', 'aumentar de novo não traz fantasma');
 
+  // Adicionar não gera evento
+  const a = fresh(4), cards = addCard([], ' Zé ');
+  console.assert(cards[0] === 'Zé' && addCard(cards, 'zé') === cards && addCard(cards, '  ') === cards && a.events.length === 0 && target(a) === '0-0', 'Adicionar só cria a carta');
+
+  // chave generativa: o que fica visível
+  const g = fresh(8), G = (m, w) => { push(g, { t: 'round', match: m, winner: w }); push(g, { t: 'round', match: m, winner: w }); };
+  'ABCDEFGH'.split('').forEach((n, i) => push(g, { t: 'place', slot: `0-${i}`, name: n }));
+  const vis = () => visible(derive(view(g)));
+  console.assert(vis().slots.size === 8 && [...vis().links].join() === '0-0,0-1,0-2,0-3', 'só a 1ª fase sem vencedor');
+  G('0-0', '0-0');
+  console.assert(vis().slots.has('1-0') && !vis().slots.has('1-1') && !vis().links.has('1-0'), 'galho solto com 1 vencedor');
+  G('0-1', '0-3');
+  console.assert(vis().slots.has('1-1') && vis().links.has('1-0') && !vis().slots.has('2-0'), 'conexão com 2 vencedores');
+  const k = fresh(8); 'ABCDEFG'.split('').forEach((n, i) => push(k, { t: 'place', slot: `0-${i}`, name: n })); // 7 MCs: 0-7 vazia
+  push(k, { t: 'round', match: '0-2', winner: '0-4' }); push(k, { t: 'round', match: '0-2', winner: '0-4' });
+  const vk = visible(derive(view(k)));
+  console.assert(vk.slots.has('1-2') && vk.slots.has('1-3') && vk.links.has('1-1') && !vk.slots.has('1-0'), 'vaga de repescagem aparece quando o confronto travou');
+
   // migração v1 → v2: mesmo placar, campeão e ranking
   const sig = x => { const r = derive(view(x)); return JSON.stringify([r.cols.map(c => c.map(y => [y.name, y.dots, y.state])), r.champion]); };
   const v1 = { current: { id: '1', createdAt: 1, size: 4, started: true, names: N, overrides: { '1-1': 'Z' }, taps: [t('0-0', '0-0'), t('0-0', null), t('0-0', '0-0')] },
@@ -355,10 +395,12 @@ const db = load() || { current: fresh(), history: [] };
 if (!read(KEY) && read(KEY_V1)) save(); // acabou de migrar: grava a v2 (a v1 continua lá)
 const cur = () => db.current;
 // Estado de tela, nunca salvo:
-// win = janela aberta sobre a Home (null | 'battle' | 'hist' | 'rank'); recarregar no meio da batalha volta direto para a chave.
+// win = tela aberta sobre a Home (null | 'battle' | 'hist' | 'rank'); recarregar no meio da batalha volta direto para a chave.
 // pick = vaga vazia escolhida com toque; fx = animação da última ação; openHist = cards do histórico expandidos.
 // zoom = escala da chave por pinça (palco e cards do histórico).
-let win = cur().events.length ? 'battle' : null, pick = null, fx = {}, zoom = { board: 1, hist: 1 };
+// cards = MCs criados pelo Adicionar nesta sessão (somem ao recarregar; quem entrou na chave fica nos eventos);
+// newCard = carta a destacar; drawn = linhas/vagas à vista no último desenho do palco (o que é novo anima).
+let win = cur().events.length ? 'battle' : null, pick = null, fx = {}, zoom = { board: 1, hist: 1 }, cards = [], newCard = null, drawn = null;
 const openHist = new Set();
 
 // ---------- render ----------
@@ -371,23 +413,28 @@ const fmtDate = ms => new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit',
 // Desenha a chave de `s`. live = palco (toques, vaga iluminada, laterais do colchete); senão só leitura (histórico).
 function bracket(s, { col, row, slotH = 44, pad = PAD, live = false, tgt = null }) {
   const v = view(s), d = derive(v), { cols, champion, playable } = d, L = cols.length - 1, suggested = live && !tgt ? d.suggested : null;
+  const { slots, links } = visible(d), lastC = Math.max(...[...slots].map(id => +id.split('-')[0])); // a chave cresce para a direita
   const yOf = (c, i) => pad + (i + 0.5) * 2 ** c * row;
-  const W = (L + 1) * col, H = s.size * row + pad;
+  const W = (lastC + 1) * col, H = s.size * row + pad;
   const color = st => st === 'win' ? 'var(--win)' : st === 'lose' ? 'var(--lose)' : 'var(--open)';
   const land = new Set(live && fx.land || []);
+  // anima só no palco e só o que acabou de aparecer; no 1º desenho (drawn = null) nada anima
+  const now = new Set(), isNew = id => { now.add(id); return live && drawn && !drawn.has(id); };
+  const line = (id, x1, y1, x2, y2, stroke) => `<line${isNew(id) ? ' pathLength="1" class="grow"' : ''} x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}"/>`;
   let svg = '', areas = '', html = '';
 
   cols.forEach((cl, c) => cl.forEach((sl, i) => {
     const x = c * col + 16, y = yOf(c, i), last = c === L;
     const lineEnd = last ? x + col - 32 : x + col - 48;
-    if (live && i === 0) html += `<div class="snap" style="left:${c * col}px;width:${col}px"></div>`;
-    svg += `<line x1="${x}" y1="${y}" x2="${lineEnd}" y2="${y}" stroke="${color(sl.state)}"/>`;
+    if (live && i === 0 && c <= lastC) html += `<div class="snap" style="left:${c * col}px;width:${col}px"></div>`;
+    if (!slots.has(sl.id)) return;
+    svg += line(`h${sl.id}`, x, y, lineEnd, y, color(sl.state));
     if (!last) {
-      const ym = yOf(c + 1, i >> 1);
-      svg += `<line x1="${lineEnd}" y1="${y}" x2="${lineEnd}" y2="${ym}" stroke="${color(sl.state)}"/>`;
+      const m = i >> 1, ym = yOf(c + 1, m);
+      if (links.has(`${c}-${m}`)) svg += line(`v${sl.id}`, lineEnd, y, lineEnd, ym, color(sl.state)); // colchete (conexão)
       if (i % 2 === 0) {
         const decided = cl[i].state !== 'open';
-        svg += `<line x1="${lineEnd}" y1="${ym}" x2="${x + col}" y2="${ym}" stroke="${decided ? 'var(--win)' : 'var(--open)'}"/>`;
+        if (slots.has(`${c + 1}-${m}`)) svg += line(`s${c}-${m}`, lineEnd, ym, x + col, ym, decided ? 'var(--win)' : 'var(--open)'); // galho até a próxima fase
         // laterais do colchete: metade de cima = round do MC de cima, de baixo = do MC de baixo; segurar = empate
         if (live && playable.has(sl.match)) {
           const yb = yOf(c, i + 1), sg = sl.match === suggested ? ' suggested' : '';
@@ -399,11 +446,13 @@ function bracket(s, { col, row, slotH = 44, pad = PAD, live = false, tgt = null 
     // lixeira: só em vaga preenchida por place (não vencedor derivado) e confronto sem round
     const del = live && !last && sl.name && sl.editable && (c === 0 || (v.overrides[sl.id] || '').trim());
     const style = `left:${x}px;top:${y - slotH}px;width:${lineEnd - x - 8 - (del ? 48 : 0)}px;height:${slotH}px`;
-    if (del) html += `<button class="del" data-del="${sl.id}" aria-label="Tirar ${esc(sl.name)} da chave" title="Tirar da chave" style="left:${lineEnd - 56}px;top:${y - 48}px">${TRASH}</button>`;
-    const fxc = land.has(sl.id) ? ' land' : '';
+    if (del) html += `<button class="del" data-del="${sl.id}" aria-label="Tirar ${esc(sl.name)} da chave" title="Tirar da chave" style="left:${lineEnd - 56}px;top:${y - slotH}px;height:${slotH}px">${TRASH}</button>`;
+    const sprout = isNew(`n${sl.id}`) && c > 0; // vaga que acabou de surgir: o nome brota depois do galho
+    const fxc = sprout ? ' sprout' : land.has(sl.id) ? ' land' : '';
     if (last) { html += `<div class="slot${champion ? ' champ' : ''}${fxc}" style="${style}"><span class="nm">${esc(sl.name)}</span>${champion ? ' 👑' : ''}</div>`; return; }
-    if (live && !sl.name) { // vaga vazia: tocar move o destaque para ela
-      html += `<button class="slot pick${sl.id === tgt ? ' target' : ''}${fxc}" data-pick="${sl.id}" aria-label="Vaga ${sl.id}" style="${style}"></button>`;
+    if (live && !sl.name) { // vaga vazia: tocar move o destaque (contorno + seta) para ela
+      const on = sl.id === tgt;
+      html += `<button class="slot pick${on ? ' target' : ''}${fxc}" data-pick="${sl.id}" aria-label="Vaga ${sl.id}${on ? ' (selecionada)' : ''}" style="${style}">${on ? '<span class="arrow" aria-hidden="true">▶</span>' : ''}</button>`;
       return;
     }
     const cls = [sl.state, sl.match === suggested && 'suggested', live && !tgt && sl.state === 'open' && sl.match !== suggested && 'dim', live && sl.match === fx.flash && 'flash'].filter(Boolean).join(' ');
@@ -411,13 +460,15 @@ function bracket(s, { col, row, slotH = 44, pad = PAD, live = false, tgt = null 
     const dots = live && fx.bump === sl.id && sl.dots ? '●'.repeat(sl.dots - 1) + '<b class="bump">●</b>' : '●'.repeat(sl.dots);
     html += `<button class="slot ${cls}${fxc}" data-slot="${sl.id}" data-match="${sl.match}" ${can ? '' : 'disabled'} style="${style}"><span class="nm">${esc(sl.name)}</span><span class="dots">${dots}</span></button>`;
   }));
+  if (live) drawn = now;
   return `<div class="bk" style="width:${W}px;height:${H}px"><svg width="${W}" height="${H}" stroke-width="3">${svg}</svg>${areas}${html}</div>`;
 }
 
-// Cartas do character select: ranking (ordem de pontos), depois todo MC já posto numa vaga (histórico e chave atual).
-// Lê os eventos place, não as vagas: quem saiu pela lixeira (ou pelo undo) continua com a carta.
+// Cartas do character select: as criadas agora pelo Adicionar (no topo), o ranking (ordem de pontos) e todo MC já posto
+// numa vaga (histórico e chave atual). Lê os eventos place, não as vagas: quem saiu pela lixeira (ou pelo undo) continua com a carta.
 function roster() {
   const seen = new Map(), add = (n, pts) => { if (n && n.trim() && !seen.has(key(n))) seen.set(key(n), { name: n.trim(), pts }); };
+  cards.forEach(n => add(n, 0));
   rank(db.history).forEach(r => add(r.name, r.points));
   [...db.history, cur()].forEach(h => (h.events || []).forEach(e => { if (e.t === 'place') add(e.name, 0); }));
   return [...seen.values()];
@@ -429,7 +480,8 @@ function render() {
   document.getElementById('bar').innerHTML =
     nb('data-tab="hist"', '☰', 'HISTÓRICO', win === 'hist' ? 'active' : '') +
     nb(`data-act="sizes" aria-label="Vagas: ${c0.size}" ${played ? 'disabled' : ''}`, c0.size, 'VAGAS') + // só antes do 1º round
-    nb('data-tab="battle"', '⚔', 'CHAVE', 'main' + (liveBoard ? ' active' : '')) +
+    // botão central: fora da chave abre a chave; dentro dela, volta para a Home
+    (liveBoard ? nb('data-home', '⌂', 'HOME', 'main active') : nb('data-tab="battle"', '⚔', played ? 'BATALHA' : 'CHAVE', 'main')) +
     nb(`data-act="end" ${c0.events.length ? '' : 'disabled'}`, '⏹', 'ENCERRAR', 'end') +
     nb('data-tab="rank"', '★', 'RANKING', win === 'rank' ? 'active' : '');
   const filled = v0.names.filter(n => n.trim()).length;
@@ -439,8 +491,6 @@ function render() {
   document.getElementById('win').hidden = !win;
   if (!win) return;
 
-  document.getElementById('wtitle').textContent = win === 'rank' ? 'RANKING'
-    : win === 'hist' ? 'HISTÓRICO' : played ? 'CHAVE · AO VIVO' : 'NOVA CHAVE';
   const tools = document.getElementById('tools'), arena = document.getElementById('arena'), sel = document.getElementById('select');
   // VAGAS e ENCERRAR ficam na barra inferior; undo/redo no botão flutuante; aqui só a dica do ao vivo
   arena.hidden = !liveBoard; tools.hidden = !liveBoard || !played;
@@ -450,21 +500,24 @@ function render() {
   document.querySelector('[data-act="undo"]').disabled = c0.cursor === 0;
   document.querySelector('[data-act="redo"]').disabled = c0.cursor === c0.events.length;
 
-  // character select só aparece quando há vaga iluminada; com a chave cheia, a batalha ganha a janela inteira
+  // character select só aparece quando há vaga iluminada; com a chave cheia, a batalha ganha a tela inteira
   const tgt = target(c0, pick);
   sel.hidden = !tgt;
   if (tgt) {
     const used = usedNames(c0), list = roster();
-    document.getElementById('grid').innerHTML = list.length ? list.map(r => `<button class="mc${used.has(key(r.name)) ? ' used" disabled' : '"'} data-mc="${esc(r.name)}">
+    const grid = document.getElementById('grid');
+    grid.innerHTML = list.length ? list.map(r => `<button class="mc${key(r.name) === newCard ? ' new' : ''}${used.has(key(r.name)) ? ' used" disabled' : '"'} data-mc="${esc(r.name)}">
         <span>${esc(r.name)}</span>${r.pts ? `<small>${r.pts} pts</small>` : ''}</button>`).join('')
       : '<p class="empty">Adicione os MCs da batalha.</p>';
+    grid.querySelector('.mc.new')?.scrollIntoView({ block: 'nearest' });
   }
+  newCard = null;
 
   const sc = document.getElementById('scroll');
   COL = sc.clientWidth;
   ROW = Math.max(MIN_ROW, Math.floor((sc.clientHeight - LIVE_PAD - 20) / c0.size));
   const bd = document.getElementById('board');
-  bd.innerHTML = bracket(c0, { col: COL, row: ROW, slotH: 48, pad: LIVE_PAD, live: true, tgt });
+  bd.innerHTML = bracket(c0, { col: COL, row: ROW, slotH: Math.min(48, ROW), pad: LIVE_PAD, live: true, tgt });
   bd.style.zoom = zoom.board; sc.classList.toggle('zoomed', zoom.board !== 1);
   fx = {};
   // a vaga iluminada sempre à vista (a metade de cima é baixa durante a montagem); medida na tela, já com o zoom
@@ -509,7 +562,7 @@ function fxOf(ev, s, forward = true) {
   return { bump: ev.winner, land: won ? [`${c + 1}-${m}`] : [] };
 }
 function act(ev) { const s = cur(); push(s, ev); fx = fxOf(ev, s); if (ev.t === 'place') pick = null; commit(); }
-// Sem duplicar: MC vivo na chave é recusado (carta travada, Adicionar também). Devolve true se pôs.
+// Sem duplicar: MC vivo na chave é recusado (carta travada). Devolve true se pôs.
 function place(name) {
   const slot = target(cur(), pick);
   if (!slot || !name.trim() || usedNames(cur()).has(key(name))) return false;
@@ -518,16 +571,16 @@ function place(name) {
 function tap(match, winner) { act(winner ? { t: 'round', match, winner } : { t: 'draw', match }); }
 
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-act], [data-tab], [data-view], [data-close], [data-pick], [data-mc], [data-del]');
+  const b = e.target.closest('[data-act], [data-tab], [data-view], [data-home], [data-pick], [data-mc], [data-del]');
   if (!b) return;
   const { act: a, tab: t, view: v, pick: p, mc, del } = b.dataset, s = cur();
   if (p) { pick = pick === p ? null : p; render(); return; } // tocar de novo na vaga escolhida solta o destaque
   // lixeira: esvazia a vaga (evento desfazível) e deixa ela iluminada para receber outro MC
   if (del) { const ev = { t: 'place', slot: del, name: '' }; push(s, ev); fx = fxOf(ev, s); pick = del; commit(); return; }
   if (mc !== undefined) { place(mc); return; }
-  // mesmo botão de novo = fecha a janela e volta para a Home
+  // aba de novo (Histórico, Ranking) = volta para a Home; o botão central vira HOME dentro da chave
   if (t) { win = win === t && !b.matches('.cta') ? null : t; pick = null; }
-  if (b.dataset.close !== undefined) { win = null; pick = null; }
+  if (b.dataset.home !== undefined) { win = null; pick = null; }
   if (v !== undefined) { const i = Number(v); openHist.has(i) ? openHist.delete(i) : openHist.add(i); render(); return; }
   if (a === 'undo' && s.cursor > 0) { undo(s); fx = fxOf(s.events[s.cursor], s, false); }
   if (a === 'redo' && s.cursor < s.events.length) { redo(s); fx = fxOf(s.events[s.cursor - 1], s); }
@@ -573,8 +626,11 @@ sheet.addEventListener('click', e => {
 
 document.getElementById('add').addEventListener('submit', e => {
   e.preventDefault();
-  const input = document.getElementById('addName');
-  if (place(input.value)) input.value = ''; // recusado (já na chave): o nome fica no campo
+  // só cria a carta (destacada); o MC entra na chave quando o operador toca nela. Nome que já tem carta só destaca.
+  const input = document.getElementById('addName'), n = input.value.trim();
+  if (!n) return;
+  if (!roster().some(r => key(r.name) === key(n))) cards = addCard(cards, n);
+  newCard = key(n); input.value = ''; render();
 });
 document.getElementById('addName').addEventListener('blur', () => setTimeout(render, 0)); // teclado fechou: remede a tela
 
