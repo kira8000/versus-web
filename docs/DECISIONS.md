@@ -59,3 +59,10 @@ Cada decisão traz o motivo. Mudar uma delas exige registrar aqui.
 - v8: zoom por pinça na chave (palco e histórico), carta travada para MC vivo, lixeira na vaga.
 - v9: VAGAS (aumentar e diminuir) e ENCERRAR (salvar ou recomeçar sem salvar) na barra inferior.
 - v10: telas cheias sem modal, zoom inicial afastado, `Adicionar` só cria a carta, vaga selecionada com seta, chave generativa.
+
+## Portal público (v11, 25/11/2026)
+- **Este repositório virou o portal público do Versus** (Next.js 16, App Router, ISR por tempo de 5 min) na mesma origem `versusproject.vercel.app`: `/` batalhas, `/b/[slug]` batalha (ranking + edições), `/e/[id]` edição com a chave. Lê só `GET /v1/public/*` do `service-versus` (production).
+- **O protótipo parou** e mora em `/legado` (`public/legado/index.html`), na mesma origem: o save `versus-web:v2` no `localStorage` de quem usa continua lá. Docs dele em `docs/legado/`.
+- **A chave do portal sai direto dos confrontos** (`lib/bracket.ts`): edição concluída não precisa da regra de derivação. Mesma checagem do app: palco antigo (fase `primeira`), repescagem ou fase incompleta vira lista de confrontos.
+- **Sem pacote compartilhado da regra da chave por ora**: a regra vive no app e na API, com os mesmos casos de teste. Pacote é fatia própria (custo: token do repo privado em Railway, Vercel e EAS).
+- `cacheComponents` desligado: ISR clássico (`export const revalidate` + `fetch` com `next.revalidate`) basta para páginas só de leitura.

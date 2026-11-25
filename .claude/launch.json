@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "versus-web",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "5178"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "5178"],
       "port": 5178
     }
   ]
