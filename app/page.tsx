@@ -1,6 +1,9 @@
 import Link from 'next/link';
 
 import { listOrganizations, mapUrl } from '@/lib/api';
+import { mapPins } from '@/lib/map';
+
+import { BattlesMap } from './BattlesMap';
 
 // Igual a REVALIDATE_SECONDS: o segment config precisa ser literal.
 export const revalidate = 300;
@@ -10,6 +13,7 @@ export default async function BattlesPage() {
   return (
     <main className="wrap">
       <h1>Batalhas</h1>
+      <BattlesMap pins={mapPins(orgs)} />
       {orgs.length === 0 ? <p className="muted">Nenhuma batalha cadastrada ainda.</p> : null}
       <ul className="list">
         {orgs.map((org) => (
