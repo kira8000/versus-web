@@ -66,3 +66,9 @@ Cada decisão traz o motivo. Mudar uma delas exige registrar aqui.
 - **A chave do portal sai direto dos confrontos** (`lib/bracket.ts`): edição concluída não precisa da regra de derivação. Mesma checagem do app: palco antigo (fase `primeira`), repescagem ou fase incompleta vira lista de confrontos.
 - **Sem pacote compartilhado da regra da chave por ora**: a regra vive no app e na API, com os mesmos casos de teste. Pacote é fatia própria (custo: token do repo privado em Railway, Vercel e EAS).
 - `cacheComponents` desligado: ISR clássico (`export const revalidate` + `fetch` com `next.revalidate`) basta para páginas só de leitura.
+
+## Mapa das batalhas (v12, 26/11/2026)
+- **`maplibre-gl`** é a única dependência nova: desenha tiles vetoriais OSM sem chave nem conta. Carregado só no navegador (`import()` dentro do `useEffect` em `app/BattlesMap.tsx`); a página `/` segue ISR no servidor.
+- **Tiles do OpenFreeMap** (estilo `dark`), gratuitos e sem cadastro; trocar por MapTiler/Stadia é mudar `STYLE_URL`. Atribuição OSM/OpenMapTiles fica visível (exigência da licença).
+- **O ponto vem do servidor**: o `service-versus` geocodifica (Nominatim) ao salvar o endereço. Endereço vago (só cidade/bairro) ou não achado = sem pino; a batalha fica só na lista. Pino errado é pior que nenhum.
+- Balão do pino montado com `textContent` (nome e endereço vêm de quem organiza: nada de `innerHTML`).

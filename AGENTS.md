@@ -28,6 +28,7 @@ npm run build            # confira a tabela de rotas: / e /b/* com Revalidate 5m
 | `app/b/[slug]/page.tsx` | `/b/[slug]`: batalha com ranking e edições concluídas; `generateStaticParams` pré-gera as que existem |
 | `app/e/[id]/page.tsx` | `/e/[id]`: edição com a chave (ou lista de confrontos do palco antigo); gerada no 1º acesso |
 | `lib/api.ts` | Cliente da API pública; 404 → `null` → `notFound()` |
+| `lib/map.ts` + `app/BattlesMap.tsx` | Pinos e enquadramento do mapa (pura, testada) + mapa MapLibre/OpenFreeMap só no cliente |
 | `lib/bracket.ts` | **Lógica pura**: chave a partir dos confrontos, com a mesma checagem do `sandboxFromDetail` do app |
 | `public/legado/index.html` | Protótipo antigo (parado), servido em `/legado`. Docs em `docs/legado/` |
 

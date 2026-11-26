@@ -203,3 +203,33 @@ footer {
   padding: 16px;
   text-align: center;
 }
+
+/* Mapa: altura fixa; atribuição OSM/OpenFreeMap sempre visível (compacta). */
+.map {
+  height: 320px;
+  margin: 16px 0 24px;
+  border: 1px solid var(--outline);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.map .maplibregl-popup-content {
+  background: var(--container);
+  color: var(--on-surface);
+  border: 1px solid var(--outline);
+}
+
+.map .maplibregl-popup-tip {
+  display: none;
+}
+
+.pin a {
+  color: var(--yellow);
+  font-family: var(--font-display), sans-serif;
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.pin p {
+  margin: 4px 0 0;
+}
